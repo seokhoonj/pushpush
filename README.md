@@ -238,6 +238,22 @@ receipt.message_id   # the id the service gave the message (when it returns one)
 receipt.response     # the full service reply (read-only)
 ```
 
+## From the shell
+
+Installing pushpush also gives you a `pushpush` command -- a thin wrapper over
+`send()` for scripts and cron.
+
+```sh
+pushpush send "deploy finished" --to slack
+pushpush send --media chart.png --caption "today" --to slack
+echo "batch done" | pushpush send --to slack     # text from stdin
+pushpush routes                                   # list the configured routes
+```
+
+It reads the same config and secrets as the Python API. Unlike the Python call it
+does not confirm before sending -- it is for automation. For an interactive,
+confirm-before-send flow, use the Claude Code skill below.
+
 ## Failures are caught before sending
 
 A message the service could not carry is stopped at the call site, before the

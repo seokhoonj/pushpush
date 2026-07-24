@@ -15,6 +15,9 @@ authors = [{ name = "Seokhoon Joo", email = "seokhoonj@gmail.com" }]
 # worth more than any convenience a third party would add.
 dependencies = []
 
+[project.scripts]
+pushpush = "pushpush.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "mypy>=1.11",

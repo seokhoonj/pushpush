@@ -225,6 +225,21 @@ receipt.message_id   # 서비스가 준 메시지 id (있을 때)
 receipt.response     # 서비스 응답 전체 (읽기 전용)
 ```
 
+## 셸에서 (CLI)
+
+pushpush를 설치하면 `pushpush` 명령도 생긴다 -- 스크립트·크론용으로 `send()`를 감싼
+얇은 래퍼다.
+
+```sh
+pushpush send "배포 완료" --to slack
+pushpush send --media chart.png --caption "오늘" --to slack
+echo "배치 끝" | pushpush send --to slack     # 본문을 stdin으로
+pushpush routes                                # 설정된 route 목록
+```
+
+Python API와 같은 설정·시크릿을 읽는다. Python 호출과 달리 발송 전 확인은 하지 않는다 --
+자동화용이다. 대화 중 확인하고 보내려면 아래 Claude Code 스킬을 쓴다.
+
 ## 실패는 보내기 전에 잡힌다
 
 서비스가 못 받을 메시지는 네트워크를 타기 전에 호출 지점에서 막힌다 -- 잘못된 전송이

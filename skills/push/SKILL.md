@@ -18,14 +18,14 @@ description: "대화 중에 나온 결과·알림·파일을 Telegram·Slack·Di
 
 ## 패키지 준비 확인
 
-이 skill은 **pip으로 설치된 pushpush**를 부른다. 경로를 하드코딩하지 말고, PATH의
-`python3`가 pushpush를 import할 수 있는지 세션에서 처음 한 번 확인한다:
+이 skill은 pushpush가 설치하는 **`pushpush` 명령**을 부른다. 세션에서 처음 한 번
+설치돼 있는지 확인한다:
 
 ```sh
-python3 -c "import pushpush; print(pushpush.__version__)"
+pushpush --version
 ```
 
-버전이 찍히면 준비 완료 -- 아래 예시는 모두 이 `python3`를 쓴다. `ModuleNotFoundError`가
+버전이 찍히면 준비 완료 -- 아래 예시는 모두 이 명령을 쓴다. `command not found`가
 나면 지어내지 말고 사용자에게 설치를 안내한다:
 
 ```sh
@@ -33,8 +33,7 @@ pip install pushpush                                        # PyPI에 올라간 
 pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
 ```
 
-사용자가 특정 가상환경에 설치했다면 PATH의 `python3` 대신 그 환경의 `python`을 쓰도록
-사용자에게 확인한다.
+사용자가 특정 가상환경에 설치했다면 그 환경을 켠(activate) 뒤 실행하도록 확인한다.
 
 ## 절차
 
@@ -52,14 +51,7 @@ pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
 어떤 route가 있는지 모르면 먼저 읽는다:
 
 ```sh
-python3 -c "
-from pushpush import load_config
-config = load_config()
-print('routes:', ', '.join(sorted(config.route_by_name)))
-print('default:', config.default_route)
-for name, route in config.route_by_name.items():
-    print(f'  {name}: {route.provider.name}', route.destination or '')
-"
+pushpush routes
 ```
 
 ### 2. 발송 전 확인받는다 — 건너뛰지 않는다
@@ -88,25 +80,18 @@ route가 어느 서비스·어디로 가는지 눈으로 확인할 수 있게 �
 
 ### 3. 보낸다
 
-본문에 줄바꿈·따옴표·한글이 섞이므로 셸 인자로 넘기지 말고 파일로 쓴다.
-
-```python
-# <scratchpad>/push.py
-from pushpush import send
-
-receipt = send(
-    "반도체 수급 급락 -- 확인 필요",
-    to      = "alerts",
-    media   = "/path/to/chart.png",   # 없으면 생략
-    caption = "today",                # media가 있을 때만
-)
-print("provider:", receipt.provider)
-print("message-id:", receipt.message_id)
-```
+본문에 줄바꿈·따옴표·한글이 섞이므로 셸 인자로 넘기지 말고 **파일에 쓴 뒤 stdin으로**
+넘긴다:
 
 ```sh
-python3 <scratchpad>/push.py
+# 본문을 <scratchpad>/body.txt에 먼저 쓴 뒤:
+pushpush send --to alerts --media /path/to/chart.png --caption "today" \
+    < <scratchpad>/body.txt
 ```
+
+- 파일이 없으면 `--media`·`--caption`을 뺀다.
+- 서식은 `--markup markdown|html`, 알림음 없이 보내려면 `--silent`.
+- 성공하면 `provider message-id` 한 줄이 stdout에 찍힌다.
 
 ### 4. 결과를 그대로 보고한다
 
