@@ -269,6 +269,6 @@ except (PushpushError, urllib.error.URLError) as err:
 
 ## Claude Code에서 쓰기
 
-이 저장소에는 `pushpush` skill이 들어 있다. Claude Code에서 "이거 텔레그램으로 보내줘"
-같은 말로 부르면(또는 `/pushpush`), skill이 route를 확인하고 발송 전 내용을 보여준 뒤
-`send()`를 호출한다. 자세한 것은 `skills/pushpush/SKILL.md`.
+이 저장소에는 `send` skill이 들어 있다. Claude Code에서 "이거 텔레그램으로 보내줘"
+같은 말로 부르면(플러그인으로 설치했으면 `/pushpush:send`), skill이 route를 확인하고
+발송 전 내용을 보여준 뒤 `send()`를 호출한다. 자세한 것은 `skills/send/SKILL.md`.

@@ -284,6 +284,7 @@ except (PushpushError, urllib.error.URLError) as err:
 
 ## Use it from Claude Code
 
-This repo ships a `pushpush` skill. In Claude Code, ask in plain words like "send
-this to Telegram" (or `/pushpush`), and the skill confirms the route, shows you
-the content before sending, and calls `send()`. See `skills/pushpush/SKILL.md`.
+This repo ships a `send` skill. In Claude Code, ask in plain words like "send
+this to Telegram" (or `/pushpush:send` once installed as a plugin), and the skill
+confirms the route, shows you the content before sending, and calls `send()`. See
+`skills/send/SKILL.md`.
