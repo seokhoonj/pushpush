@@ -2,7 +2,7 @@
 
     from pushpush import send
 
-    send("반도체 수급 급락 -- 확인 필요", to="alerts")
+    send("chip supply crash -- take a look", to="alerts")
     send(media="chart.png", caption="today", to="alerts")
 
 `to` names a route you configured -- a service and a destination, saved under a
