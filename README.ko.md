@@ -23,7 +23,7 @@ Windows·macOS·Linux에서 동작한다. 설치되는 것은 이 패키지뿐�
 못 받을 것은 네트워크를 타기 전에 막고, 결과를 `SendReceipt`로 돌려준다.
 
 ```mermaid
-flowchart LR
+flowchart TB
     caller["send(text, to='alerts')"] --> cfg["load_config()<br/>config.toml"]
     cfg --> route["Route<br/>provider + destination"]
     route --> secret["resolve_secret()<br/>env / credentials.json"]

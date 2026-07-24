@@ -25,7 +25,7 @@ request, refuses anything the service could not carry before the network is
 touched, and returns the result as a `SendReceipt`.
 
 ```mermaid
-flowchart LR
+flowchart TB
     caller["send(text, to='alerts')"] --> cfg["load_config()<br/>config.toml"]
     cfg --> route["Route<br/>provider + destination"]
     route --> secret["resolve_secret()<br/>env / credentials.json"]
