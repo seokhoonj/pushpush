@@ -1,6 +1,7 @@
 """The `pushpush` command: argument parsing, stdin, routes, and exit codes."""
 
 import io
+import urllib.error
 
 import pytest
 
@@ -67,3 +68,41 @@ def test_a_failed_send_reports_and_exits_one(config_home, transport, capsys):
     code = cli.main(["send", "hi", "--to", "alerts"])
     assert code == 1
     assert "pushpush:" in capsys.readouterr().err
+
+
+def test_a_network_failure_exits_two(config_home, transport, monkeypatch, capsys):
+    _telegram_route(config_home, monkeypatch)
+
+    def fail(*args, **kwargs):
+        raise urllib.error.URLError("name resolution failed")
+
+    monkeypatch.setattr("pushpush.provider.post_json", fail)
+    assert cli.main(["send", "hi", "--to", "alerts"]) == 2
+    assert "the network failed" in capsys.readouterr().err
+
+
+def test_send_media_through_the_cli(config_home, transport, monkeypatch, tmp_path):
+    _telegram_route(config_home, monkeypatch)
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))  # no piped text
+    png = tmp_path / "chart.png"
+    png.write_bytes(b"\x89PNG")
+    cli.main(["send", "--to", "alerts", "--media", str(png), "--caption", "cap"])
+    assert transport.last_multipart.fields["caption"] == "cap"
+
+
+def test_an_argument_wins_over_piped_stdin(config_home, transport, monkeypatch):
+    _telegram_route(config_home, monkeypatch)
+    monkeypatch.setattr("sys.stdin", io.StringIO("piped"))
+    cli.main(["send", "typed", "--to", "alerts"])
+    assert transport.last_json.payload["text"] == "typed"
+
+
+def test_no_text_and_a_tty_exits_one(config_home, transport, monkeypatch):
+    _telegram_route(config_home, monkeypatch)
+
+    class _Tty:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr("sys.stdin", _Tty())
+    assert cli.main(["send", "--to", "alerts"]) == 1  # InvalidPushError, no hang

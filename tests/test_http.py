@@ -16,9 +16,19 @@ import pytest
 from pushpush.http import (
     MultipartFile,
     _multipart_body,
+    post_bytes,
     post_json,
     post_multipart,
 )
+
+
+def test_post_bytes_sends_a_raw_octet_stream_body(monkeypatch):
+    captured: list[urllib.request.Request] = []
+    _stub_urlopen(monkeypatch, raw=b"OK", capture=captured)
+    response = post_bytes("https://x", b"the file bytes")
+    assert captured[0].data == b"the file bytes"
+    assert captured[0].get_header("Content-type") == "application/octet-stream"
+    assert response.text == "OK"
 
 
 class FakeResponse(io.BytesIO):

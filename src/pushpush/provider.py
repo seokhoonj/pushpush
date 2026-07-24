@@ -79,7 +79,8 @@ class SendReceipt:
     message_id
         The service's own id for the delivered message, when it returns one -- a
         Telegram ``message_id``, a Discord message id, a Slack ``ts``. None for a
-        Slack incoming webhook, which acknowledges without identifying.
+        Slack incoming webhook (which acknowledges without identifying) and for a
+        Slack bot-token file upload, whose completeUpload reply carries no ``ts``.
     response
         The service's full reply, read-only.
     """
@@ -431,8 +432,18 @@ class SlackProvider(Provider):
     def send_media(
         self, *, secret: str, destination: str | None, push: Push
     ) -> dict[str, Any]:
-        # A webhook media send was refused in validate, so the secret here is a
-        # bot token. Slack uploads a file in three calls.
+        """Upload a file to Slack via the three-call external-upload flow.
+
+        A webhook media send is refused in `validate`, so the secret here is a bot
+        token: reserve an upload URL (``files.getUploadURLExternal``), POST the
+        bytes to it, then share it into the channel (``files.completeUploadExternal``).
+
+        Raises
+        ------
+        SendFailedError
+            Slack refuses the reservation, names no upload target, answers the byte
+            upload with a 4xx/5xx, or rejects the completeUpload.
+        """
         assert push.media is not None  # media send; guaranteed by the caller
         media = read_media(push.media)
         auth = {"Authorization": f"Bearer {secret}"}
@@ -443,17 +454,24 @@ class SlackProvider(Provider):
             files   = {},
             headers = auth,
         ))
-        # 2. POST the bytes to the reserved URL; it authenticates itself, no header.
-        uploaded = post_bytes(str(reserved["upload_url"]), media.content)
-        if uploaded.status >= 400:
+        upload_url = reserved.get("upload_url")
+        file_id = reserved.get("file_id")
+        if not (isinstance(upload_url, str) and isinstance(file_id, str)):
+            # ok:true but no target -- translate, rather than let a KeyError escape
+            # send()'s documented (PushpushError, urllib.error.URLError) contract.
             raise SendFailedError(
-                f"Slack refused the file upload: HTTP {uploaded.status}"
+                f"Slack accepted the upload reservation but named no target; "
+                f"reply keys: {sorted(reserved)}"
+            )
+        # 2. POST the bytes to the reserved URL; it authenticates itself, no header.
+        upload_response = post_bytes(upload_url, media.content)
+        if upload_response.status >= 400:
+            raise SendFailedError(
+                f"Slack refused the file upload: HTTP {upload_response.status}"
             )
         # 3. Share the file into the channel, with any caption as its comment.
         fields = {
-            "files": json.dumps(
-                [{"id": reserved["file_id"], "title": media.filename}]
-            ),
+            "files": json.dumps([{"id": file_id, "title": media.filename}]),
             "channel_id": str(destination),
         }
         if push.caption_or_text is not None:

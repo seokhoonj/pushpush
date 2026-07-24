@@ -6,10 +6,19 @@ purpose, so a token never lands in shell history.
 """
 
 import argparse
+import contextlib
 import sys
 import urllib.error
+from typing import get_args
 
-from pushpush import PushpushError, __version__, load_config, send
+from pushpush import (
+    InvalidPushError,
+    Markup,
+    PushpushError,
+    __version__,
+    load_config,
+    send,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,15 +46,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
 
-    sender = subcommands.add_parser("send", help="send a message or a file")
-    sender.add_argument("text", nargs="?", help="message text (or piped on stdin)")
-    sender.add_argument("-t", "--to", help="route name (default: the default route)")
-    sender.add_argument("-m", "--media", help="path to a file to send")
-    sender.add_argument("-c", "--caption", help="a line shown with the media")
-    sender.add_argument(
-        "--markup", choices=("plain", "markdown", "html"), default="plain"
-    )
-    sender.add_argument(
+    send_parser = subcommands.add_parser("send", help="send a message or a file")
+    send_parser.add_argument("text", nargs="?", help="message text (or on stdin)")
+    send_parser.add_argument("-t", "--to", help="route (default: the default route)")
+    send_parser.add_argument("-m", "--media", help="path to a file to send")
+    send_parser.add_argument("-c", "--caption", help="a line shown with the media")
+    send_parser.add_argument("--markup", choices=get_args(Markup), default="plain")
+    send_parser.add_argument(
         "-s", "--silent", action="store_true", help="deliver without a sound"
     )
 
@@ -56,7 +63,12 @@ def _build_parser() -> argparse.ArgumentParser:
 def _send(args: argparse.Namespace) -> int:
     text: str | None = args.text
     if text is None and not sys.stdin.isatty():
-        text = sys.stdin.read().strip() or None
+        try:
+            text = sys.stdin.read().strip() or None
+        except (OSError, UnicodeDecodeError) as err:
+            raise InvalidPushError(
+                f"cannot read message text from stdin: {err}"
+            ) from err
     receipt = send(
         text,
         to      = args.to,
@@ -65,7 +77,9 @@ def _send(args: argparse.Namespace) -> int:
         markup  = args.markup,
         silent  = args.silent,
     )
-    print(receipt.provider, receipt.message_id or "")
+    # A reader that closed early (`... | head`) must not fail a delivered send.
+    with contextlib.suppress(BrokenPipeError):
+        print(receipt.provider, receipt.message_id or "")
     return 0
 
 

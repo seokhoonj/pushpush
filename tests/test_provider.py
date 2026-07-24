@@ -254,12 +254,42 @@ def test_slack_bot_uploads_a_file_in_three_steps(transport, tmp_path):
     assert any("getUploadURLExternal" in url for url in urls)
     assert any("completeUploadExternal" in url for url in urls)
     assert len(transport.bytes_calls) == 1  # the file bytes went up once
+    assert transport.bytes_calls[0].url == "https://files.slack.com/upload/v1/x"
+    assert transport.bytes_calls[0].content == b"\x89PNG\r\n"
     reserve = next(c for c in transport.multipart_calls if "getUploadURL" in c.url)
     assert reserve.fields["filename"] == "chart.png"
     assert reserve.fields["length"] == str(len(b"\x89PNG\r\n"))
     complete = next(c for c in transport.multipart_calls if "completeUpload" in c.url)
     assert complete.fields["channel_id"] == "C123"
     assert complete.fields["initial_comment"] == "chart"
+
+
+def test_slack_upload_url_rejection_raises(transport, tmp_path):
+    transport.multipart_reply_by_url = {
+        "getUploadURLExternal": HTTPResponse(
+            200,
+            {"ok": True, "upload_url": "https://files.slack.com/upload/v1/x",
+             "file_id": "F1"},
+            "",
+        ),
+    }
+    transport.bytes_reply = HTTPResponse(413, {}, "")
+    with pytest.raises(SendFailedError, match="file upload"):
+        SLACK.send_media(
+            secret=SLACK_BOT, destination="C1", push=Push(media=_png(tmp_path))
+        )
+
+
+def test_slack_reserve_without_a_target_raises_send_failed(transport, tmp_path):
+    # ok:true but no upload_url/file_id must become a SendFailedError, not a
+    # KeyError that escapes send()'s documented exception contract.
+    transport.multipart_reply_by_url = {
+        "getUploadURLExternal": HTTPResponse(200, {"ok": True}, ""),
+    }
+    with pytest.raises(SendFailedError, match="no target"):
+        SLACK.send_media(
+            secret=SLACK_BOT, destination="C1", push=Push(media=_png(tmp_path))
+        )
 
 
 def test_telegram_refuses_oversize_photo_before_upload(tmp_path):
