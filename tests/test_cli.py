@@ -2,8 +2,17 @@
 
 import io
 
+import pytest
+
+import pushpush
 import pushpush.cli as cli
 from tests.conftest import write_config
+
+
+def test_version_flag_prints_the_package_version(capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["--version"])
+    assert capsys.readouterr().out.strip() == f"pushpush {pushpush.__version__}"
 
 
 def _telegram_route(config_home, monkeypatch):

@@ -1,6 +1,7 @@
 """The public surface is importable and complete."""
 
 import importlib
+import importlib.metadata
 
 import pushpush
 
@@ -8,6 +9,13 @@ import pushpush
 def test_version_is_present():
     assert isinstance(pushpush.__version__, str)
     assert pushpush.__version__
+
+
+def test_the_distribution_and_runtime_versions_agree():
+    # The version is written twice on purpose -- in pyproject.toml, which the
+    # build reads into the distribution metadata, and as __version__ -- so this
+    # asserts the two never drift apart.
+    assert importlib.metadata.version("pushpush") == pushpush.__version__
 
 
 def test_all_names_are_importable():
