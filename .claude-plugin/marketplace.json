@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "push",
+      "name": "pushpush",
       "source": "./",
       "description": "Send messages and files to Telegram, Slack, or Discord from a Claude Code conversation. Calls the pushpush package's send()."
     }

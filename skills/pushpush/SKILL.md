@@ -1,9 +1,9 @@
 ---
-name: push
+name: pushpush
 description: "대화 중에 나온 결과·알림·파일을 Telegram·Slack·Discord로 보낸다. 자체 로직 없이 pushpush 패키지의 send()를 호출하며, 발송 전 반드시 대상(route)·내용·첨부를 사용자에게 확인받는다. Trigger phrases: 텔레그램으로 보내줘, 슬랙으로 보내, 디스코드로 보내, 알림 보내줘, 푸시 보내줘, push this, send to telegram/slack/discord."
 ---
 
-# push — 대화 결과를 메신저로 보내기
+# pushpush — 대화 결과를 메신저로 보내기
 
 메신저 발송은 **되돌릴 수 없는 외부 전송**이다. 잘못 보낸 메시지는 회수할 수 없고,
 잘못된 채널에 간 파일은 그쪽에 남는다. 그래서 이 skill의 절반은 발송 자체가 아니라
