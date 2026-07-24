@@ -34,8 +34,13 @@ class FakeTransport:
     def __init__(self) -> None:
         self.json_calls: list[types.SimpleNamespace] = []
         self.multipart_calls: list[types.SimpleNamespace] = []
+        self.bytes_calls: list[types.SimpleNamespace] = []
         self.json_reply = TELEGRAM_OK
         self.multipart_reply = TELEGRAM_OK
+        self.bytes_reply = HTTPResponse(status=200, body={}, text="")
+        # For a multi-call flow (Slack file upload) a test maps a URL fragment to
+        # the reply that call should get; anything unmatched gets multipart_reply.
+        self.multipart_reply_by_url: dict[str, HTTPResponse] = {}
 
     def post_json(self, url, payload, *, headers=None, timeout=None):
         self.json_calls.append(
@@ -47,7 +52,16 @@ class FakeTransport:
         self.multipart_calls.append(
             types.SimpleNamespace(url=url, fields=fields, files=files, headers=headers)
         )
+        for fragment, reply in self.multipart_reply_by_url.items():
+            if fragment in url:
+                return reply
         return self.multipart_reply
+
+    def post_bytes(self, url, content, *, headers=None, timeout=None):
+        self.bytes_calls.append(
+            types.SimpleNamespace(url=url, content=content, headers=headers)
+        )
+        return self.bytes_reply
 
     @property
     def last_json(self) -> types.SimpleNamespace:
@@ -64,6 +78,7 @@ def transport(monkeypatch):
     fake = FakeTransport()
     monkeypatch.setattr("pushpush.provider.post_json", fake.post_json)
     monkeypatch.setattr("pushpush.provider.post_multipart", fake.post_multipart)
+    monkeypatch.setattr("pushpush.provider.post_bytes", fake.post_bytes)
     return fake
 
 

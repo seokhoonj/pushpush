@@ -26,7 +26,13 @@ from importlib.metadata import PackageNotFoundError, version
 from io import BytesIO
 from typing import Any, NamedTuple
 
-__all__ = ["HTTPResponse", "MultipartFile", "post_json", "post_multipart"]
+__all__ = [
+    "HTTPResponse",
+    "MultipartFile",
+    "post_bytes",
+    "post_json",
+    "post_multipart",
+]
 
 # Sent on every request so a service sees pushpush, not urllib's default
 # "Python-urllib/x.y" -- which Discord's Cloudflare front rejects outright
@@ -116,6 +122,29 @@ def post_multipart(
     body = _multipart_body(boundary, fields=fields, files=files)
     request = urllib.request.Request(url, data=body, method="POST")
     request.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    _add_headers(request, headers)
+    return _read(request, timeout)
+
+
+def post_bytes(
+    url: str,
+    content: bytes,
+    *,
+    headers: Mapping[str, str] | None = None,
+    timeout: float = MULTIPART_TIMEOUT_SECONDS,
+) -> HTTPResponse:
+    """POST raw bytes with an ``application/octet-stream`` body and read the reply.
+
+    For an upload endpoint that takes the file's bytes directly rather than a
+    multipart form -- Slack's external-upload URL is the one caller here.
+
+    Raises
+    ------
+    urllib.error.URLError
+        As `post_json`.
+    """
+    request = urllib.request.Request(url, data=content, method="POST")
+    request.add_header("Content-Type", "application/octet-stream")
     _add_headers(request, headers)
     return _read(request, timeout)
 

@@ -32,7 +32,13 @@ from pushpush.errors import (
     SendFailedError,
     UnknownProviderError,
 )
-from pushpush.http import HTTPResponse, MultipartFile, post_json, post_multipart
+from pushpush.http import (
+    HTTPResponse,
+    MultipartFile,
+    post_bytes,
+    post_json,
+    post_multipart,
+)
 from pushpush.message import Markup, Push
 
 __all__ = [
@@ -360,26 +366,45 @@ class SlackProvider(Provider):
     An incoming-webhook URL (``https://hooks.slack.com/...``) posts text to the
     channel baked into the URL and needs no destination. A bot token (``xoxb-...``)
     posts through ``chat.postMessage`` and must be told a channel, which is the
-    route's destination. Media is not carried in this version -- Slack's file
-    upload is a multi-step flow left for later -- so a media push is refused up
-    front by `supports_media`. Slack has no per-message quiet-delivery control, so
-    a push's `silent` flag has no effect here (Telegram and Discord honour it).
+    route's destination.
+
+    A file goes only through a bot token -- an incoming webhook has no upload at
+    all -- and takes three calls: reserve an upload URL (``getUploadURLExternal``),
+    POST the bytes to it, then share it into the channel (``completeUploadExternal``).
+    The bot needs the ``files:write`` scope, and a file's ``destination`` must be a
+    channel id (``C…``), which is what ``completeUploadExternal`` accepts. So a
+    media push on a webhook route is refused, and one on a bot route is uploaded.
+
+    Slack has no per-message quiet-delivery control, so a push's `silent` flag has
+    no effect here (Telegram and Discord honour it).
     """
 
     name = "slack"
-    supports_media = False
+    supports_media = True  # bot token only; a webhook is refused in validate
     needs_destination = False  # webhook mode; bot mode is checked in validate
     supported_markups = frozenset({"plain", "markdown"})
-    max_media_bytes = None
+    max_media_bytes = None  # Slack enforces its own workspace limit
 
     POST_MESSAGE_URL: ClassVar[str] = "https://slack.com/api/chat.postMessage"
+    GET_UPLOAD_URL: ClassVar[str] = (
+        "https://slack.com/api/files.getUploadURLExternal"
+    )
+    COMPLETE_UPLOAD_URL: ClassVar[str] = (
+        "https://slack.com/api/files.completeUploadExternal"
+    )
 
     def validate(self, *, secret: str, destination: str | None, push: Push) -> None:
         super().validate(secret=secret, destination=destination, push=push)
-        # Only bot-token mode needs a channel; a webhook carries its own. The
-        # base class cannot make this call -- it does not read the secret -- so
-        # the mode-dependent half of the destination rule lives here.
-        if not _is_slack_webhook(secret) and not destination:
+        # The two mode-dependent rules the base class cannot make -- it does not
+        # read the secret. A webhook cannot upload a file; a bot token can, but
+        # (like chat.postMessage) must be told which channel.
+        if _is_slack_webhook(secret):
+            if push.media is not None:
+                raise MediaUnsupportedError(
+                    "a Slack incoming webhook cannot upload a file; use a "
+                    "bot-token route, or send the file via Telegram or Discord"
+                )
+        elif not destination:
             raise InvalidPushError(
                 "a Slack bot-token route needs a destination channel (e.g. "
                 'destination = "#alerts"); chat.postMessage must be told where '
@@ -402,6 +427,40 @@ class SlackProvider(Provider):
             headers = {"Authorization": f"Bearer {secret}"},
         )
         return self._api_result(response)
+
+    def send_media(
+        self, *, secret: str, destination: str | None, push: Push
+    ) -> dict[str, Any]:
+        # A webhook media send was refused in validate, so the secret here is a
+        # bot token. Slack uploads a file in three calls.
+        assert push.media is not None  # media send; guaranteed by the caller
+        media = read_media(push.media)
+        auth = {"Authorization": f"Bearer {secret}"}
+        # 1. Reserve an upload URL for a file of this name and size.
+        reserved = self._api_result(post_multipart(
+            self.GET_UPLOAD_URL,
+            fields  = {"filename": media.filename, "length": str(len(media.content))},
+            files   = {},
+            headers = auth,
+        ))
+        # 2. POST the bytes to the reserved URL; it authenticates itself, no header.
+        uploaded = post_bytes(str(reserved["upload_url"]), media.content)
+        if uploaded.status >= 400:
+            raise SendFailedError(
+                f"Slack refused the file upload: HTTP {uploaded.status}"
+            )
+        # 3. Share the file into the channel, with any caption as its comment.
+        fields = {
+            "files": json.dumps(
+                [{"id": reserved["file_id"], "title": media.filename}]
+            ),
+            "channel_id": str(destination),
+        }
+        if push.caption_or_text is not None:
+            fields["initial_comment"] = push.caption_or_text
+        return self._api_result(post_multipart(
+            self.COMPLETE_UPLOAD_URL, fields=fields, files={}, headers=auth
+        ))
 
     def message_id_of(self, response: Mapping[str, Any]) -> str | None:
         timestamp = response.get("ts")

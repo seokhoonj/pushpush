@@ -226,11 +226,40 @@ def test_slack_webhook_needs_no_destination(transport):
     SLACK.validate(secret=SLACK_WEBHOOK, destination=None, push=Push(text="hi"))
 
 
-def test_slack_media_is_unsupported(transport, tmp_path):
+def test_slack_webhook_cannot_upload_a_file(tmp_path):
     with pytest.raises(MediaUnsupportedError):
         SLACK.validate(
-            secret=SLACK_BOT, destination="#a", push=Push(media=_png(tmp_path))
+            secret=SLACK_WEBHOOK, destination=None, push=Push(media=_png(tmp_path))
         )
+
+
+def test_slack_bot_uploads_a_file_in_three_steps(transport, tmp_path):
+    transport.multipart_reply_by_url = {
+        "getUploadURLExternal": HTTPResponse(
+            200,
+            {"ok": True, "upload_url": "https://files.slack.com/upload/v1/x",
+             "file_id": "F1"},
+            "",
+        ),
+        "completeUploadExternal": HTTPResponse(
+            200, {"ok": True, "files": [{"id": "F1"}]}, ""
+        ),
+    }
+    SLACK.send_media(
+        secret=SLACK_BOT,
+        destination="C123",
+        push=Push(media=_png(tmp_path), caption="chart"),
+    )
+    urls = [call.url for call in transport.multipart_calls]
+    assert any("getUploadURLExternal" in url for url in urls)
+    assert any("completeUploadExternal" in url for url in urls)
+    assert len(transport.bytes_calls) == 1  # the file bytes went up once
+    reserve = next(c for c in transport.multipart_calls if "getUploadURL" in c.url)
+    assert reserve.fields["filename"] == "chart.png"
+    assert reserve.fields["length"] == str(len(b"\x89PNG\r\n"))
+    complete = next(c for c in transport.multipart_calls if "completeUpload" in c.url)
+    assert complete.fields["channel_id"] == "C123"
+    assert complete.fields["initial_comment"] == "chart"
 
 
 def test_telegram_refuses_oversize_photo_before_upload(tmp_path):
@@ -260,12 +289,24 @@ def test_discord_non_url_secret_is_refused_without_leaking_it():
     assert bad_secret not in str(caught.value)
 
 
-def test_text_only_provider_refuses_a_direct_media_call(tmp_path):
-    # Slack inherits the base send_media, which refuses media for a text-only
-    # service even on a direct, unvalidated call.
+def test_text_only_provider_inherits_the_media_refusal(tmp_path):
+    # A provider that declares no media support inherits the base send_media,
+    # which refuses media even on a direct, unvalidated call.
+    from pushpush.provider import Provider
+
+    class _TextOnly(Provider):
+        name = "textonly"
+        supports_media = False
+        needs_destination = False
+        supported_markups = frozenset({"plain"})
+        max_media_bytes = None
+
+        def send_text(self, *, secret, destination, push):
+            return {}
+
     with pytest.raises(MediaUnsupportedError):
-        SLACK.send_media(
-            secret=SLACK_BOT, destination="#a", push=Push(media=_png(tmp_path))
+        _TextOnly().send_media(
+            secret="x", destination=None, push=Push(media=_png(tmp_path))
         )
 
 

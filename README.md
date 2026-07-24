@@ -69,12 +69,13 @@ flowchart TB
 |---|---|---|---|
 | Telegram | Yes | Yes (photo/document) | bot token + chat_id |
 | Discord | Yes | Yes (webhook attachment) | webhook URL |
-| Slack | Yes | Not yet | webhook URL or bot token (xoxb) |
+| Slack | Yes | Bot token only | webhook URL or bot token (xoxb) |
 
-Slack file upload is a multi-step flow, deferred to a later version. If you try
-to send a file to Slack now, it does not fail silently -- it is refused clearly
-with `MediaUnsupportedError`. Send files through Telegram or Discord, or put a
-link in the text.
+Slack files go only through a **bot token** (with the `files:write` scope), and
+the route's `destination` must be a channel id (`C…`). An incoming webhook has no
+file upload at all -- a media push on a webhook route is refused clearly with
+`MediaUnsupportedError`, so send it via Telegram or Discord, or put a link in the
+text.
 
 ## Requirements
 
@@ -198,8 +199,9 @@ That whole URL is the secret, and no `destination` is needed.
 - **The simple way -- webhook**: create a per-channel webhook URL at
   [Incoming Webhooks](https://api.slack.com/messaging/webhooks). The whole URL is
   the secret; no `destination`.
-- **Bot token**: create an app, grant it `chat:write`, and get a bot token
-  (`xoxb-...`). Then put the channel (`#alerts`) in `destination`.
+- **Bot token**: create an app, grant it `chat:write` (and `files:write` to send
+  files), and get a bot token (`xoxb-...`). Then put the channel in `destination`
+  -- a name like `#alerts` for text, or the channel id `C…` when you send files.
 
 ## Sending
 
@@ -246,7 +248,7 @@ raises right there.
 |---|---|
 | `InvalidPushError` | nothing to send (no text, no media), a caption without media, or a destination needed but absent |
 | `MediaError` / `MediaTooLargeError` | the file is missing or not a file / over the service's limit |
-| `MediaUnsupportedError` | the service cannot carry a file (Slack, for now) |
+| `MediaUnsupportedError` | the route cannot carry a file (a Slack incoming webhook -- use a bot token) |
 | `MarkupUnsupportedError` | the service does not render that markup (html is Telegram only) |
 | `MissingSecretError` | the route has no secret |
 | `SendFailedError` | the service was reached and refused -- a revoked token, a wrong chat_id, etc. Carries the service's own reason |

@@ -66,11 +66,12 @@ flowchart TB
 |---|---|---|---|
 | Telegram | O | O (사진·문서) | 봇 토큰 + chat_id |
 | Discord | O | O (웹훅 첨부) | 웹훅 URL |
-| Slack | O | 아직 안 됨 | 웹훅 URL 또는 봇 토큰(xoxb) |
+| Slack | O | 봇 토큰만 | 웹훅 URL 또는 봇 토큰(xoxb) |
 
-Slack 파일 전송은 여러 단계를 거치는 업로드라 다음 버전으로 미뤄져 있다. 지금
-Slack으로 파일을 보내려 하면 조용히 실패하지 않고 `MediaUnsupportedError`로 분명히
-막는다 -- 파일은 Telegram·Discord로 보내거나 링크를 텍스트에 담는다.
+Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, route의 `destination`이
+채널 id(`C…`)여야 한다. 웹훅에는 파일 업로드 기능이 아예 없어서, 웹훅 route로 미디어를
+보내려 하면 `MediaUnsupportedError`로 분명히 막는다 -- 그럴 땐 Telegram·Discord로
+보내거나 링크를 텍스트에 담는다.
 
 ## 준비물
 
@@ -186,8 +187,9 @@ route가 여럿이면 `PUSHPUSH_SECRET_<ROUTE>`를 쓴다 -- 이름 없는 `PUSH
 
 - **간단한 쪽 -- 웹훅**: [Incoming Webhooks](https://api.slack.com/messaging/webhooks)에서
   채널당 웹훅 URL을 만든다. URL 전체가 secret, `destination` 불필요.
-- **봇 토큰**: 앱을 만들고 `chat:write` 권한을 준 뒤 봇 토큰(`xoxb-...`)을 받는다.
-  이 경우 `destination`에 채널(`#alerts`)을 적는다.
+- **봇 토큰**: 앱을 만들고 `chat:write`(파일도 보내려면 `files:write`) 권한을 준 뒤
+  봇 토큰(`xoxb-...`)을 받는다. `destination`에는 채널을 적는다 -- 텍스트는 `#alerts`
+  같은 이름, 파일을 보낼 때는 채널 id `C…`.
 
 ## 보내기
 
@@ -232,7 +234,7 @@ receipt.response     # 서비스 응답 전체 (읽기 전용)
 |---|---|
 | `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, destination이 필요한데 없음 |
 | `MediaError` / `MediaTooLargeError` | 파일이 없거나 파일이 아님 / 서비스 한도 초과 |
-| `MediaUnsupportedError` | 그 서비스가 파일을 못 나름 (지금은 Slack) |
+| `MediaUnsupportedError` | 그 route가 파일을 못 나름 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
 | `MarkupUnsupportedError` | 그 서비스가 그 서식을 안 그림 (html은 Telegram만) |
 | `MissingSecretError` | 그 route의 secret이 없음 |
 | `SendFailedError` | 서비스까지 갔는데 거부됨 -- 폐기된 토큰, 틀린 chat_id 등. 서비스가 준 사유를 담고 있다 |
