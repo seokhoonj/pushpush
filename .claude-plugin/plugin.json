@@ -1,7 +1,7 @@
 {
   "name": "pushpush",
   "description": "Send messages and files to Telegram, Slack, or Discord from a Claude Code conversation. Requires the pushpush Python package (pip install pushpush).",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "seokhoonj"
   },
