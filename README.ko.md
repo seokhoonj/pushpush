@@ -40,31 +40,6 @@ flowchart TB
     service --> receipt["SendReceipt<br/>route · message_id · response"]
 ```
 
-객체는 세 역할로 나뉜다 -- 구성하는 **데이터**, 보내는 **동작(provider)**, 돌아오는
-**결과**. 새 서비스는 `Provider` 하위클래스 하나로 끝난다.
-
-```mermaid
-flowchart TB
-    subgraph data["데이터 -- 무엇을 어디로"]
-        Push["Push<br/>text · media · markup"]
-        Route["Route<br/>name · provider · destination"]
-        Config["Config<br/>route 모음"]
-    end
-    subgraph model["동작 -- 서비스의 프로토콜을 아는 provider"]
-        Provider["Provider (ABC)"]
-        Provider --> TelegramProvider
-        Provider --> SlackProvider
-        Provider --> DiscordProvider
-    end
-    subgraph result["결과"]
-        SendReceipt["SendReceipt<br/>서비스 응답 원본을 품는다"]
-    end
-    Config --> Route
-    Push --> Provider
-    Route --> Provider
-    Provider --> SendReceipt
-```
-
 ## 무엇을 어디로 보낼 수 있나
 
 | 서비스 | 텍스트 | 파일 | 자격증명 |

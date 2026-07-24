@@ -42,32 +42,6 @@ flowchart TB
     service --> receipt["SendReceipt<br/>route · message_id · response"]
 ```
 
-Objects split into three roles -- the **data** you build, the **behavior** that
-sends (a provider), and the **result** that comes back. A new service is one
-`Provider` subclass.
-
-```mermaid
-flowchart TB
-    subgraph data["Data -- what, and where to"]
-        Push["Push<br/>text · media · markup"]
-        Route["Route<br/>name · provider · destination"]
-        Config["Config<br/>the set of routes"]
-    end
-    subgraph model["Behavior -- a provider that knows the service's protocol"]
-        Provider["Provider (ABC)"]
-        Provider --> TelegramProvider
-        Provider --> SlackProvider
-        Provider --> DiscordProvider
-    end
-    subgraph result["Result"]
-        SendReceipt["SendReceipt<br/>holds the service's raw reply"]
-    end
-    Config --> Route
-    Push --> Provider
-    Route --> Provider
-    Provider --> SendReceipt
-```
-
 ## What you can send, and where
 
 | Service | Text | File | Credential |
