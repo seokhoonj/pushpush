@@ -86,32 +86,31 @@ text.
 
 ## 1. Install
 
-```sh
-git clone https://github.com/seokhoonj/pushpush.git
-cd pushpush
-python -m venv .venv
-```
-
-The last line creates a Python space (a virtual environment) just for this
-package. Once created, activate it.
+pushpush installs itself and nothing else -- no other libraries come along.
 
 ```sh
-source .venv/bin/activate  # macOS, Linux
-.venv\Scripts\activate     # Windows
-```
-
-When active, your prompt is prefixed with `(.venv)`. **Run this line again every
-time you open a new terminal.** Now install.
-
-```sh
-pip install -e .
+pip install pushpush                                        # once it is on PyPI
+pip install git+https://github.com/seokhoonj/pushpush.git   # until then
 ```
 
 Check it worked:
 
 ```sh
-python -c "import pushpush; print(pushpush.__version__)"
+pushpush --version
 ```
+
+<details>
+<summary>From source (for development)</summary>
+
+```sh
+git clone https://github.com/seokhoonj/pushpush.git
+cd pushpush
+python -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+</details>
 
 ## 2. Configure a route
 
@@ -284,7 +283,23 @@ except (PushpushError, urllib.error.URLError) as err:
 
 ## Use it from Claude Code
 
-This repo ships a `send` skill. In Claude Code, ask in plain words like "send
-this to Telegram" (or `/pushpush:send` once installed as a plugin), and the skill
-confirms the route, shows you the content before sending, and calls `send()`. See
-`skills/send/SKILL.md`.
+This repo ships a `send` skill: describe what to send in plain words ("send this
+to Telegram") and it confirms the route, shows you the content, and sends only
+after you approve.
+
+The repo is its own plugin marketplace, so install it from inside Claude Code:
+
+```
+/plugin marketplace add seokhoonj/pushpush
+/plugin install pushpush@pushpush
+```
+
+Then invoke it with `/pushpush:send` (or plain language). The skill calls the
+`pushpush` command, so install the package too (step 1). See `skills/send/SKILL.md`.
+
+Prefer no plugin? Symlink the skill into your skills directory and call it as
+`/send`:
+
+```sh
+ln -s "$PWD/skills/send" ~/.claude/skills/send
+```

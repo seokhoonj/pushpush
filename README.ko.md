@@ -81,31 +81,31 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 
 ## 1. 설치
 
-```sh
-git clone https://github.com/seokhoonj/pushpush.git
-cd pushpush
-python -m venv .venv
-```
-
-마지막 줄은 이 패키지 전용 파이썬 공간(가상환경)을 만든다. 만들었으면 켠다.
+pushpush는 자기 자신만 설치한다 -- 다른 라이브러리를 함께 끌어오지 않는다.
 
 ```sh
-source .venv/bin/activate  # macOS, Linux
-.venv\Scripts\activate     # Windows
-```
-
-켜지면 프롬프트 앞에 `(.venv)`가 붙는다. **터미널을 새로 열 때마다 이 줄을 다시
-실행해야 한다.** 이제 설치한다.
-
-```sh
-pip install -e .
+pip install pushpush                                        # PyPI에 올라간 뒤
+pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
 ```
 
 잘 됐는지 확인:
 
 ```sh
-python -c "import pushpush; print(pushpush.__version__)"
+pushpush --version
 ```
+
+<details>
+<summary>소스에서 설치 (개발용)</summary>
+
+```sh
+git clone https://github.com/seokhoonj/pushpush.git
+cd pushpush
+python -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+</details>
 
 ## 2. route 설정
 
@@ -269,6 +269,21 @@ except (PushpushError, urllib.error.URLError) as err:
 
 ## Claude Code에서 쓰기
 
-이 저장소에는 `send` skill이 들어 있다. Claude Code에서 "이거 텔레그램으로 보내줘"
-같은 말로 부르면(플러그인으로 설치했으면 `/pushpush:send`), skill이 route를 확인하고
-발송 전 내용을 보여준 뒤 `send()`를 호출한다. 자세한 것은 `skills/send/SKILL.md`.
+이 저장소에는 `send` skill이 있다: "이거 슬랙으로 보내줘"처럼 말하면 route를 확인하고
+내용을 보여준 뒤 **승인받고서야** 보낸다.
+
+저장소 자체가 플러그인 마켓플레이스라, Claude Code 안에서 바로 설치한다:
+
+```
+/plugin marketplace add seokhoonj/pushpush
+/plugin install pushpush@pushpush
+```
+
+그다음 `/pushpush:send`(또는 자연어)로 호출한다. skill은 `pushpush` 명령을 부르므로
+패키지도 설치돼 있어야 한다(1단계). 자세한 것은 `skills/send/SKILL.md`.
+
+플러그인 없이 쓰려면, skill을 스킬 폴더에 심링크해 `/send`로 부른다:
+
+```sh
+ln -s "$PWD/skills/send" ~/.claude/skills/send
+```
