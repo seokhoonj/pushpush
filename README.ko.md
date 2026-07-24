@@ -1,5 +1,9 @@
 # pushpush
 
+[![PyPI](https://img.shields.io/pypi/v/pushpush)](https://pypi.org/project/pushpush/)
+[![Python](https://img.shields.io/pypi/pyversions/pushpush)](https://pypi.org/project/pushpush/)
+[![License](https://img.shields.io/pypi/l/pushpush)](https://github.com/seokhoonj/pushpush/blob/main/LICENSE)
+
 [English](README.md) | **한국어**
 
 Telegram·Slack·Discord로 메시지를 보내는 파이썬 패키지. 텍스트와 파일 한 장을

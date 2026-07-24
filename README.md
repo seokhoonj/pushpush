@@ -1,5 +1,9 @@
 # pushpush
 
+[![PyPI](https://img.shields.io/pypi/v/pushpush)](https://pypi.org/project/pushpush/)
+[![Python](https://img.shields.io/pypi/pyversions/pushpush)](https://pypi.org/project/pushpush/)
+[![License](https://img.shields.io/pypi/l/pushpush)](https://github.com/seokhoonj/pushpush/blob/main/LICENSE)
+
 **English** | [한국어](README.ko.md)
 
 Send messages to Telegram, Slack, or Discord from Python. Send text and a single
