@@ -1,0 +1,30 @@
+name: publish
+
+# Publish to PyPI when a GitHub Release is published. Authentication is via
+# PyPI Trusted Publishing (OIDC): no API token or password is stored anywhere --
+# GitHub mints a short-lived identity token that PyPI verifies against the
+# publisher registered for this repo (owner seokhoonj / repo pushpush / this
+# workflow / environment "pypi"). Build and publish run in one job, so there is
+# no artifact round-trip; the only actions are checkout and setup-python (the
+# publish action is container-based).
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # required for OIDC; this is what replaces a stored token
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
