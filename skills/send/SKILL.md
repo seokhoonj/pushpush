@@ -1,127 +1,128 @@
 ---
 name: send
-description: "대화 중에 나온 결과·알림·파일을 Telegram·Slack·Discord로 보낸다. 자체 로직 없이 pushpush 패키지의 send()를 호출하며, 발송 전 반드시 대상(route)·내용·첨부를 사용자에게 확인받는다. Trigger phrases: 텔레그램으로 보내줘, 슬랙으로 보내, 디스코드로 보내, 알림 보내줘, 푸시 보내줘, push this, send to telegram/slack/discord."
+description: Send a result, alert, or file from the conversation to Telegram, Slack, or Discord. Holds no logic of its own -- it calls the pushpush package's send() -- and always shows the destination (route), content, and attachment for approval before sending. Trigger phrases: send to telegram, send to slack, send to discord, push this, send a notification, 텔레그램으로 보내줘, 슬랙으로 보내, 디스코드로 보내, 알림 보내줘, 푸시 보내줘.
 ---
 
-# pushpush send — 대화 결과를 메신저로 보내기
+# pushpush send -- send a conversation result to a messenger
 
-메신저 발송은 **되돌릴 수 없는 외부 전송**이다. 잘못 보낸 메시지는 회수할 수 없고,
-잘못된 채널에 간 파일은 그쪽에 남는다. 그래서 이 skill의 절반은 발송 자체가 아니라
-발송 전 확인이다.
+Sending a message is an **irreversible external action**. A wrong message cannot be
+recalled, and a file sent to the wrong channel stays there. So half of this skill is
+not the send itself -- it is the confirmation before it.
 
-## 이 skill이 하지 않는 것
+## What this skill does not do
 
-로직을 갖지 않는다. HTTP 요청 조립, capability 검사(파일 지원 여부·크기·서식), route
-해석은 **전부 pushpush 패키지가 한다.** 여기서 그걸 다시 구현하거나, provider별 한도를
-여기에 복사해두지 마라. 그러면 규칙이 두 집에 살게 되고 둘은 반드시 갈라진다. 이 skill은
-`send(...)` 호출 하나를 조립해서 실행할 뿐이다.
+It holds no logic. Framing the HTTP request, capability checks (file support, size,
+markup), and route resolution are **all the pushpush package's job.** Do not
+reimplement them here or copy a provider's limits into this file -- a rule that lives
+in two places will drift. This skill only assembles one `send(...)` call and runs it.
 
-## 패키지 준비 확인
+## Confirm the package is ready
 
-이 skill은 pushpush가 설치하는 **`pushpush` 명령**을 부른다. 세션에서 처음 한 번
-설치돼 있는지 확인한다:
+This skill calls the **`pushpush` command** the package installs. Once per session,
+check it is there:
 
 ```sh
 pushpush --version
 ```
 
-버전이 찍히면 준비 완료 -- 아래 예시는 모두 이 명령을 쓴다. `command not found`가
-나면 지어내지 말고 사용자에게 설치를 안내한다:
+If a version prints, you are ready -- every example below uses this command. If
+`command not found` appears, do not invent a path; tell the user how to install it:
 
 ```sh
-pip install pushpush                                        # PyPI에 올라간 뒤
-pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
+pip install pushpush        # once it is on PyPI
+pipx install pushpush       # for a global command, kept isolated
 ```
 
-사용자가 특정 가상환경에 설치했다면 그 환경을 켠(activate) 뒤 실행하도록 확인한다.
+If the user installed it into a specific virtual environment, confirm they run it with
+that environment active.
 
-## 절차
+## Procedure
 
-### 1. 무엇을, 어디로 보낼지 정리한다
+### 1. Settle what to send, and where
 
-빠진 게 있으면 **추측하지 말고 묻는다.**
+If anything is missing, **ask -- do not guess.**
 
-- `to` — 어느 route로 (생략하면 `default_route`)
-- `text` — 메시지 본문
-- `media` — 보낼 파일 경로 (선택)
-- `caption` — 파일에 붙일 한 줄 (media가 있을 때만)
-- `markup` — `"plain"`(기본)·`"markdown"`·`"html"`. html은 Telegram만.
-- `silent` — 알림음 없이 보낼지
+- `to` -- which route (omit for `default_route`)
+- `text` -- the message body
+- `media` -- path to a file to send (optional)
+- `caption` -- a line shown with the media (only when `media` is given)
+- `markup` -- `"plain"` (default), `"markdown"`, or `"html"`. html is Telegram only.
+- `silent` -- deliver without a notification sound
 
-어떤 route가 있는지 모르면 먼저 읽는다:
+If you do not know which routes exist, read them first:
 
 ```sh
 pushpush routes
 ```
 
-### 2. 발송 전 확인받는다 — 건너뛰지 않는다
+### 2. Get approval before sending -- never skip this
 
-route가 어느 서비스·어디로 가는지 눈으로 확인할 수 있게 펼쳐서 보여준다:
+Lay the route out so the user can see which service it goes to and where:
 
 ```
-보낼 내용을 확인해 주세요:
+Please confirm what to send:
 
   route   alerts (telegram, chat 123456789)
-  내용    반도체 수급 급락 -- 확인 필요
-  첨부    chart.png (240 KB)
-  서식    plain
+  body    chip supply crash -- take a look
+  file    chart.png (240 KB)
+  markup  plain
 
-보낼까요?
+Send it?
 ```
 
-첨부가 없으면 `첨부    (없음)`이라고 명시한다.
+If there is no attachment, say `file    (none)` explicitly.
 
-승인 없이 보내지 않는다. 사용자가 "보내줘"라고 이미 말했더라도, route·내용·첨부가
-확정된 형태로 한 번은 보여준다 — 사용자가 승인한 것은 "보낸다"는 행위이지 아직 이
-구체적 내용이 아니다.
+Do not send without approval. Even if the user already said "send it", show the route,
+content, and attachment in their settled form once -- what the user approved was the
+*act* of sending, not yet this specific content.
 
-**본인 채널이 아닌 곳(팀 채널, 남의 봇)에는 절대 테스트 메시지를 보내지 않는다.** 동작
-확인이 목적이면 본인 route로만 보낸다.
+**Never send a test message to a channel that is not the user's own** (a team channel,
+someone else's bot). If the goal is to confirm delivery, send only to the user's route.
 
-### 3. 보낸다
+### 3. Send
 
-본문에 줄바꿈·따옴표·한글이 섞이므로 셸 인자로 넘기지 말고 **파일에 쓴 뒤 stdin으로**
-넘긴다:
+The body may carry newlines, quotes, and non-ASCII, so do not pass it as a shell
+argument -- **write it to a file and pipe it in on stdin**:
 
 ```sh
-# 본문을 <scratchpad>/body.txt에 먼저 쓴 뒤:
+# after writing the body to <scratchpad>/body.txt:
 pushpush send --to alerts --media /path/to/chart.png --caption "today" \
     < <scratchpad>/body.txt
 ```
 
-- 파일이 없으면 `--media`·`--caption`을 뺀다.
-- 서식은 `--markup markdown|html`, 알림음 없이 보내려면 `--silent`.
-- 성공하면 `provider message-id` 한 줄이 stdout에 찍힌다.
+- Drop `--media` and `--caption` when there is no file.
+- Markup is `--markup markdown|html`; deliver without a sound with `--silent`.
+- On success one line, `provider message-id`, is printed to stdout.
 
-### 4. 결과를 그대로 보고한다
+### 4. Report the result as-is
 
-`send`가 예외 없이 돌아왔으면 발송 완료다. `receipt.provider`와 `receipt.message_id`를
-보고한다. 실패는 예외로 오지, 조용한 성공으로 뭉뚱그려지지 않는다.
+If `send` returned without an exception, delivery is done. Report `provider` and the
+message id. A failure arrives as an exception, never rounded off into a quiet success.
 
-## 예외가 났을 때
+## When an exception is raised
 
-패키지 예외는 이미 사용자가 읽을 수 있는 문장이다. **`str(err)`를 그대로 전달한다.**
-아래 표는 예외별로 덧붙일 행동만 적는다.
+A package exception is already a sentence a user can read. **Pass `str(err)` through
+as-is.** The table below lists only the action to add per exception.
 
-| 예외 | 덧붙일 행동 |
+| Exception | Action to add |
 |---|---|
-| `MissingSecretError` | **토큰·웹훅 URL을 대화에 붙여넣게 하지 마라.** 본인 터미널에서 `getpass`로 넣는 명령을 안내한다(README 3단계). |
-| `InsecureCredentialsError` | 없음 — 예외에 `chmod 600` 명령이 들어 있다. |
-| `MediaUnsupportedError` | 그 route는 파일을 못 나른다(Slack 웹훅 -- 봇 토큰 route면 파일 가능). Telegram·Discord로 보내거나 링크를 텍스트에 담을지 묻는다. |
-| `MediaTooLargeError` | 파일을 줄이거나 다른 route로 보낼지 묻는다. |
-| `MarkupUnsupportedError` | 그 서식을 그 서비스가 안 그린다. `markup="plain"`으로 다시 보낼지 묻는다. |
-| `InvalidPushError` | 보낼 내용이 없거나, media 없는 caption, destination이 빠짐. 사용자에게 받아 다시 조립한다. |
-| `SendFailedError` | 서비스가 거부했다(폐기된 토큰, 틀린 chat_id). 예외가 서비스의 사유를 담고 있다. |
-| `UnknownRouteError` / `UnknownProviderError` | 설정에 없는 route·provider. 아래 "첫 설정"으로. |
-| `urllib.error.URLError` | 네트워크 자체 실패. 잠시 뒤 재시도할지 묻는다. |
+| `MissingSecretError` | **Do not have the user paste a token or webhook URL into the chat.** Point them at the `getpass` command to enter it in their own terminal (README step 3). |
+| `InsecureCredentialsError` | None -- the exception already carries the `chmod 600` command. |
+| `MediaUnsupportedError` | The route cannot carry a file (a Slack webhook -- a bot-token route can). Ask whether to send it via Telegram or Discord, or put a link in the text. |
+| `MediaTooLargeError` | Ask whether to shrink the file or send it on a different route. |
+| `MarkupUnsupportedError` | The service does not render that markup. Ask whether to resend with `markup="plain"`. |
+| `InvalidPushError` | Nothing to send, a caption without media, or a missing destination. Get it from the user and reassemble. |
+| `SendFailedError` | The service refused (a revoked token, a wrong chat id). The exception carries the service's own reason. |
+| `UnknownRouteError` / `UnknownProviderError` | A route or provider not in the config. Go to "First setup" below. |
+| `urllib.error.URLError` | The network itself failed. Ask whether to retry shortly. |
 
-## 첫 설정
+## First setup
 
-`ConfigError`가 나면 설정 파일이 없는 것이다. 형식은 저장소의 `README.md` 2·3단계에
-있다.
+A `ConfigError` means the config file is missing. Its format is in the repo's
+`README.md`, steps 2 and 3.
 
-**경로를 적어두지 마라.** 패키지가 `PUSHPUSH_CONFIG`·`PUSHPUSH_CREDENTIALS`·
-`XDG_CONFIG_HOME`을 보고 정하므로, 패키지에 물어라:
+**Do not hardcode paths.** The package decides them from `PUSHPUSH_CONFIG`,
+`PUSHPUSH_CREDENTIALS`, and `XDG_CONFIG_HOME`, so ask the package:
 
 ```sh
 python3 -c "
@@ -131,6 +132,7 @@ print('credentials:', default_credentials_path())
 "
 ```
 
-**설정과 자격증명은 저장소 안에 만들지 않는다** — 위가 찍어주는 자리(둘 다 저장소 밖)에
-만든다. **토큰·웹훅 URL을 대화나 스크립트에 평문으로 쓰지 마라.** 사용자에게 `getpass`를
-쓰는 명령을 안내하고 본인 터미널에서 실행하게 한다.
+**Do not create the config or credentials inside the repo** -- put them where the
+command above prints (both outside the repo). **Never write a token or webhook URL in
+plain text in the chat or a script.** Point the user at the `getpass` command and have
+them run it in their own terminal.
