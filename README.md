@@ -253,32 +253,3 @@ except (PushpushError, urllib.error.URLError) as err:
 이 저장소에는 `push` skill이 들어 있다. Claude Code에서 "이거 텔레그램으로 보내줘"
 같은 말로 부르면(또는 `/push`), skill이 route를 확인하고 발송 전 내용을 보여준 뒤
 `send()`를 호출한다. 자세한 것은 `skills/push/SKILL.md`.
-
-## 로드맵
-
-- **KakaoTalk '나에게 보내기'** — 한국에서 가장 쓸모 있는 대상. 카카오 메시지 API의
-  OAuth 토큰 발급·갱신이 다른 provider보다 번거로워 뒤에 두었지만, `Provider` 하나를
-  더하면 `to="kakao"`로 부를 수 있게 열려 있다.
-- **Slack 파일 전송** — Slack의 업로드는 여러 단계를 거치는 흐름이라 다음 버전으로
-  미뤄져 있다. 지금은 `MediaUnsupportedError`로 분명히 막는다.
-- **ntfy·Pushover·Teams** — 폰 푸시/조직 알림용. Telegram 봇이 폰 푸시를 이미 덮으므로
-  우선순위는 낮다.
-
-## 새 서비스 추가
-
-한 서비스는 하나의 `Provider`다. Kakao·ntfy·Teams를 더하는 것은 `provider.py`에
-`Provider` 하위클래스 하나와 `PROVIDER_BY_NAME`에 한 줄을 더하는 일이지, 새 send 함수를
-만드는 일이 아니다. `send_text`·`send_media`가 그 서비스의 HTTP 요청을 짜고, capability
-속성(`supports_media` 등)이 무엇을 나를 수 있는지 선언한다.
-
-## 개발
-
-```sh
-pip install -e ".[dev]"
-pytest        # 오프라인·결정적. 네트워크를 타지 않는다.
-mypy
-ruff check
-```
-
-테스트는 `pushpush.http`의 두 전송 함수를 가짜로 바꿔 오프라인으로 돈다. 실제 발송은
-`dev/`의 스크립트로 확인한다(저장소에 커밋되지 않는다).
