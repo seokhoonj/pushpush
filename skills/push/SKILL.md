@@ -16,23 +16,25 @@ description: "대화 중에 나온 결과·알림·파일을 Telegram·Slack·Di
 여기에 복사해두지 마라. 그러면 규칙이 두 집에 살게 되고 둘은 반드시 갈라진다. 이 skill은
 `send(...)` 호출 하나를 조립해서 실행할 뿐이다.
 
-## 패키지를 어디서 찾나
+## 패키지 준비 확인
 
-**경로를 하드코딩하지 마라.** 이 skill은 저장소 안에서 심링크된 것이므로, 저장소는 이
-skill 폴더의 **두 단계 위**다. 세션에서 처음 필요할 때 한 번 찾고, 그 뒤로는 그 값을
-재사용한다.
+이 skill은 **pip으로 설치된 pushpush**를 부른다. 경로를 하드코딩하지 말고, PATH의
+`python3`가 pushpush를 import할 수 있는지 세션에서 처음 한 번 확인한다:
 
 ```sh
-python3 -c "
-import os, pathlib
-skill = pathlib.Path(os.path.realpath(os.path.expanduser('~/.claude/skills/push')))
-venv  = skill.parents[1] / '.venv' / ('Scripts' if os.name == 'nt' else 'bin') / 'python'
-print(venv if venv.exists() else 'NOT FOUND')
-"
+python3 -c "import pushpush; print(pushpush.__version__)"
 ```
 
-`NOT FOUND`가 나오면 지어내지 말고 **사용자에게 저장소 위치를 묻는다.** 아래 예시들은
-이렇게 찾은 경로를 `$PUSHPUSH_PY`로 적는다.
+버전이 찍히면 준비 완료 -- 아래 예시는 모두 이 `python3`를 쓴다. `ModuleNotFoundError`가
+나면 지어내지 말고 사용자에게 설치를 안내한다:
+
+```sh
+pip install pushpush                                        # PyPI에 올라간 뒤
+pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
+```
+
+사용자가 특정 가상환경에 설치했다면 PATH의 `python3` 대신 그 환경의 `python`을 쓰도록
+사용자에게 확인한다.
 
 ## 절차
 
@@ -50,7 +52,7 @@ print(venv if venv.exists() else 'NOT FOUND')
 어떤 route가 있는지 모르면 먼저 읽는다:
 
 ```sh
-$PUSHPUSH_PY -c "
+python3 -c "
 from pushpush import load_config
 config = load_config()
 print('routes:', ', '.join(sorted(config.route_by_name)))
@@ -103,7 +105,7 @@ print("message-id:", receipt.message_id)
 ```
 
 ```sh
-$PUSHPUSH_PY <scratchpad>/push.py
+python3 <scratchpad>/push.py
 ```
 
 ### 4. 결과를 그대로 보고한다
@@ -120,7 +122,7 @@ $PUSHPUSH_PY <scratchpad>/push.py
 |---|---|
 | `MissingSecretError` | **토큰·웹훅 URL을 대화에 붙여넣게 하지 마라.** 본인 터미널에서 `getpass`로 넣는 명령을 안내한다(README 3단계). |
 | `InsecureCredentialsError` | 없음 — 예외에 `chmod 600` 명령이 들어 있다. |
-| `MediaUnsupportedError` | 그 서비스는 파일을 못 나른다(지금은 Slack). Telegram·Discord로 보내거나 링크를 텍스트에 담을지 묻는다. |
+| `MediaUnsupportedError` | 그 route는 파일을 못 나른다(Slack 웹훅 -- 봇 토큰 route면 파일 가능). Telegram·Discord로 보내거나 링크를 텍스트에 담을지 묻는다. |
 | `MediaTooLargeError` | 파일을 줄이거나 다른 route로 보낼지 묻는다. |
 | `MarkupUnsupportedError` | 그 서식을 그 서비스가 안 그린다. `markup="plain"`으로 다시 보낼지 묻는다. |
 | `InvalidPushError` | 보낼 내용이 없거나, media 없는 caption, destination이 빠짐. 사용자에게 받아 다시 조립한다. |
@@ -137,7 +139,7 @@ $PUSHPUSH_PY <scratchpad>/push.py
 `XDG_CONFIG_HOME`을 보고 정하므로, 패키지에 물어라:
 
 ```sh
-$PUSHPUSH_PY -c "
+python3 -c "
 from pushpush import default_config_path, default_credentials_path
 print('config:     ', default_config_path())
 print('credentials:', default_credentials_path())
