@@ -114,17 +114,20 @@ def test_non_json_body_lands_in_text(monkeypatch):
 
 
 def test_http_error_is_a_reply_not_a_raise(monkeypatch):
+    reply_fp = io.BytesIO(b'{"description": "bad token"}')
+
     def fake(request, timeout=None):
         raise urllib.error.HTTPError(
             url="https://x", code=401, msg="Unauthorized",
             hdrs=email.message.Message(),
-            fp=io.BytesIO(b'{"description": "bad token"}'),
+            fp=reply_fp,
         )
 
     monkeypatch.setattr("pushpush.http.urllib.request.urlopen", fake)
     response = post_json("https://x", {})
     assert response.status == 401
     assert response.body == {"description": "bad token"}
+    assert reply_fp.closed  # the error reply's socket is closed, not left to the GC
 
 
 def test_url_error_propagates(monkeypatch):

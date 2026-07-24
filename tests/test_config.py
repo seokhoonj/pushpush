@@ -35,6 +35,18 @@ def test_routes_that_fold_to_one_env_var_are_refused(config_home):
         load_config()
 
 
+def test_config_path_that_is_a_directory_is_reported(config_home):
+    (config_home / "config.toml").mkdir()  # read_text -> IsADirectoryError (OSError)
+    with pytest.raises(ConfigError, match="cannot read configuration"):
+        load_config()
+
+
+def test_non_utf8_config_is_reported(config_home):
+    (config_home / "config.toml").write_bytes(b"\xff\xfe not utf-8")
+    with pytest.raises(ConfigError, match="not valid UTF-8"):
+        load_config()
+
+
 def test_named_default_route(config_home):
     write_config(
         config_home,

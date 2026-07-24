@@ -251,6 +251,24 @@ def test_read_media_translates_a_read_failure(tmp_path):
         read_media(missing)
 
 
+def test_discord_non_url_secret_is_refused_without_leaking_it():
+    # The secret is the URL Discord posts to; a non-URL value must be refused at
+    # validate, and the secret must never appear in the exception message.
+    bad_secret = "xoxb-should-not-be-here-999"
+    with pytest.raises(InvalidPushError) as caught:
+        DISCORD.validate(secret=bad_secret, destination=None, push=Push(text="hi"))
+    assert bad_secret not in str(caught.value)
+
+
+def test_text_only_provider_refuses_a_direct_media_call(tmp_path):
+    # Slack inherits the base send_media, which refuses media for a text-only
+    # service even on a direct, unvalidated call.
+    with pytest.raises(MediaUnsupportedError):
+        SLACK.send_media(
+            secret=SLACK_BOT, destination="#a", push=Push(media=_png(tmp_path))
+        )
+
+
 # -- markup capability across providers -------------------------------------
 
 

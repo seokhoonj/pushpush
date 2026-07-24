@@ -37,6 +37,7 @@ __all__ = [
     "default_credentials_path",
     "delete_secret",
     "resolve_secret",
+    "secret_env_suffix",
     "store_secret",
 ]
 
@@ -94,7 +95,7 @@ def resolve_secret(route: Route, *, path: Path | None = None) -> str:
         f"no secret stored for route {route.name!r}; put its "
         f"{route.provider.name} token or webhook URL in {path} with "
         f"store_secret(route, secret), or set "
-        f"{SECRET_ENV_VAR}_{_env_suffix(route.name)}"
+        f"{SECRET_ENV_VAR}_{secret_env_suffix(route.name)}"
     )
 
 
@@ -152,11 +153,11 @@ def _load_secret_from_env(route: Route) -> str | None:
     be exported: a route `team-alerts` is read as `PUSHPUSH_SECRET_TEAM_ALERTS`,
     not the `TEAM-ALERTS` a shell rejects.
     """
-    per_route = os.environ.get(f"{SECRET_ENV_VAR}_{_env_suffix(route.name)}")
+    per_route = os.environ.get(f"{SECRET_ENV_VAR}_{secret_env_suffix(route.name)}")
     return per_route or os.environ.get(SECRET_ENV_VAR)
 
 
-def _env_suffix(route_name: str) -> str:
+def secret_env_suffix(route_name: str) -> str:
     """The env-var suffix a route name folds to: `team-alerts` -> `TEAM_ALERTS`.
 
     Anything a shell rejects in a variable name folds to `_`. Two names that fold
@@ -176,7 +177,9 @@ def _load_secret_by_route(path: Path) -> dict[str, str]:
         return {}
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError as err:
+    except (OSError, UnicodeDecodeError) as err:
+        # UnicodeDecodeError is a ValueError, not an OSError, so it must be named
+        # explicitly -- otherwise a non-UTF-8 file would escape send()'s contract.
         raise CredentialsError(f"cannot read {path}: {err}") from err
     try:
         stored = json.loads(text)
@@ -226,7 +229,11 @@ def _check_owner_only_readable(path: Path) -> None:
     """
     if os.name != "posix":
         return
-    if not (path.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO)):
+    try:
+        mode = path.stat().st_mode
+    except OSError as err:
+        raise CredentialsError(f"cannot check permissions on {path}: {err}") from err
+    if not (mode & (stat.S_IRWXG | stat.S_IRWXO)):
         return
     raise InsecureCredentialsError(
         f"{path} is readable by more than its owner; secrets must not be. "

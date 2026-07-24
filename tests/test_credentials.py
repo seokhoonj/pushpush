@@ -132,6 +132,26 @@ def test_non_string_secret_value_is_reported(config_home):
         resolve_secret(ALERTS)
 
 
+def test_unreadable_store_is_reported(config_home):
+    path = default_credentials_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.mkdir()  # read_text -> IsADirectoryError (OSError)
+    if os.name == "posix":
+        path.chmod(0o700)  # owner-only so the permission gate passes first
+    with pytest.raises(CredentialsError, match="cannot read"):
+        resolve_secret(ALERTS)
+
+
+def test_non_utf8_store_is_reported(config_home):
+    path = default_credentials_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\xff\xfe")
+    if os.name == "posix":
+        path.chmod(0o600)
+    with pytest.raises(CredentialsError, match="cannot read"):
+        resolve_secret(ALERTS)
+
+
 def test_failed_atomic_replace_leaves_the_store_intact(config_home, monkeypatch):
     store_secret(ALERTS, "original-token")
 

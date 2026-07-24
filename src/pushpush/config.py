@@ -16,7 +16,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from pushpush.credentials import SECRET_ENV_VAR, _env_suffix
+from pushpush.credentials import SECRET_ENV_VAR, secret_env_suffix
 from pushpush.errors import ConfigError, UnknownRouteError
 from pushpush.provider import resolve_provider
 from pushpush.route import Route
@@ -97,6 +97,10 @@ def load_config(path: Path | str | None = None) -> Config:
         ) from err
     except OSError as err:
         raise ConfigError(f"cannot read configuration at {path}: {err}") from err
+    except UnicodeDecodeError as err:
+        # A ValueError, not an OSError, so it needs its own clause -- otherwise a
+        # non-UTF-8 config would escape send()'s documented catch.
+        raise ConfigError(f"{path} is not valid UTF-8: {err}") from err
     except tomllib.TOMLDecodeError as err:
         raise ConfigError(f"{path} is not valid TOML: {err}") from err
     return _as_config(document, path=path)
@@ -141,7 +145,7 @@ def _reject_env_name_collisions(
     """
     name_by_suffix: dict[str, str] = {}
     for name in route_by_name:
-        suffix = _env_suffix(name)
+        suffix = secret_env_suffix(name)
         clash = name_by_suffix.get(suffix)
         if clash is not None:
             raise ConfigError(

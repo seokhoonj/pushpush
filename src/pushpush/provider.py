@@ -167,6 +167,11 @@ class Provider(ABC):
         it. `validate` already blocks media on a text-only service via
         `supports_media`, so reaching here means a direct, unvalidated call.
         """
+        if self.supports_media:
+            raise MediaUnsupportedError(
+                f"{self.name} declares media support but does not implement "
+                f"send_media"
+            )
         raise MediaUnsupportedError(
             f"{self.name} through pushpush carries text only, not media"
         )
@@ -202,7 +207,10 @@ class TelegramProvider(Provider):
         # oversize photo here rather than let it fail mid-upload.
         mime_type = mimetypes.guess_type(media.name)[0] or ""
         if mime_type.startswith("image/"):
-            size = media.stat().st_size
+            try:
+                size = media.stat().st_size
+            except OSError as err:
+                raise MediaError(f"cannot read media at {media}: {err}") from err
             if size > self.PHOTO_MAX_BYTES:
                 raise MediaTooLargeError(
                     f"{media.name} is {size:,} bytes; Telegram sends images up to "
@@ -293,6 +301,17 @@ class DiscordProvider(Provider):
     # The unboosted webhook upload cap; boosted servers allow more, but pre-checking
     # against the floor keeps an oversize file from failing halfway up the wire.
     max_media_bytes = 8 * 1024 * 1024
+
+    def validate(self, *, secret: str, destination: str | None, push: Push) -> None:
+        super().validate(secret=secret, destination=destination, push=push)
+        # The secret IS the URL this posts to. A non-URL value (a bot token pasted
+        # into a Discord route) would surface as a urllib ValueError carrying the
+        # secret in its message -- refuse it here, without echoing the secret.
+        if not secret.startswith(("https://", "http://")):
+            raise InvalidPushError(
+                "the discord route's secret must be the webhook URL "
+                "(https://discord.com/api/webhooks/...)"
+            )
 
     def send_text(
         self, *, secret: str, destination: str | None, push: Push

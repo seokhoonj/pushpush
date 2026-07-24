@@ -169,7 +169,7 @@ def _add_headers(
 
 
 def _read(request: urllib.request.Request, timeout: float) -> HTTPResponse:
-    """Send the request and turn the reply into an `HttpResponse`.
+    """Send the request and turn the reply into an `HTTPResponse`.
 
     An HTTP error status (4xx/5xx) is a reply, not a transport failure: the
     services answer a rejected send with a 4xx whose body holds the reason, so it
