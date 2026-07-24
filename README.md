@@ -1,5 +1,6 @@
 # pushpush
 
+[![check](https://github.com/seokhoonj/pushpush/actions/workflows/check.yml/badge.svg)](https://github.com/seokhoonj/pushpush/actions/workflows/check.yml)
 [![PyPI](https://img.shields.io/pypi/v/pushpush)](https://pypi.org/project/pushpush/)
 [![Python](https://img.shields.io/pypi/pyversions/pushpush)](https://pypi.org/project/pushpush/)
 [![License](https://img.shields.io/pypi/l/pushpush)](https://github.com/seokhoonj/pushpush/blob/main/LICENSE)
