@@ -23,6 +23,7 @@ import os
 import stat
 from pathlib import Path
 
+from pushpush.config import config_dir
 from pushpush.errors import (
     CredentialsError,
     InsecureCredentialsError,
@@ -58,7 +59,7 @@ def default_credentials_path() -> Path:
     override = os.environ.get(CREDENTIALS_PATH_ENV_VAR)
     if override:
         return Path(override).expanduser()
-    return _config_home() / "pushpush" / "credentials.json"
+    return config_dir() / "credentials.json"
 
 
 def resolve_secret(route: Route, *, path: Path | None = None) -> str:
@@ -239,8 +240,3 @@ def _check_owner_only_readable(path: Path) -> None:
         f"{path} is readable by more than its owner; secrets must not be. "
         f"Fix it with: chmod 600 {path}"
     )
-
-
-def _config_home() -> Path:
-    xdg_home = os.environ.get("XDG_CONFIG_HOME")
-    return Path(xdg_home).expanduser() if xdg_home else Path.home() / ".config"

@@ -19,7 +19,7 @@ own reply comes back in the `SendReceipt`.
 
 from pathlib import Path
 
-from pushpush.config import Config, default_config_path, load_config
+from pushpush.config import Config, config_dir, default_config_path, load_config
 from pushpush.credentials import (
     SECRET_ENV_VAR,
     default_credentials_path,
@@ -79,6 +79,7 @@ __all__ = [
     "UnknownProviderError",
     "UnknownRouteError",
     "UnsupportedError",
+    "config_dir",
     "default_config_path",
     "default_credentials_path",
     "delete_secret",

@@ -1,11 +1,17 @@
-"""Reading the routes off disk.
+"""The machine-local config directory, and reading the routes off disk.
 
-The file lives under the XDG config directory rather than beside the code, because
-a messaging setup is a property of the machine, not of a checkout -- and because a
-project directory is exactly the kind of place that gets synced to a cloud drive
-or committed by accident. Secrets are not here; they are in `credentials`. What
-lives here is the non-secret half: which service each route uses and where it
-points.
+`config_dir()` resolves the one directory pushpush keeps on the machine, by hand
+from the env var the XDG spec names -- no `platformdirs` dependency, matching the
+zero-dependency rule. Both files hang off it: `config.toml` here, and the `0600`
+`credentials.json` read by `credentials` (which imports `config_dir` from here, so
+the base is resolved in exactly one place). There is no data or state directory --
+pushpush sends and forgets, writing nothing durable to relocate.
+
+The directory lives outside any checkout because a messaging setup is a property
+of the machine, not of a project -- and because a project directory is exactly the
+kind of place that gets synced to a cloud drive or committed by accident. Secrets
+are not in this file; they are in `credentials`. What lives here is the non-secret
+half: which service each route uses and where it points.
 """
 
 import os
@@ -16,12 +22,11 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from pushpush.credentials import SECRET_ENV_VAR, secret_env_suffix
 from pushpush.errors import ConfigError, UnknownRouteError
 from pushpush.provider import resolve_provider
 from pushpush.route import Route
 
-__all__ = ["Config", "default_config_path", "load_config"]
+__all__ = ["Config", "config_dir", "default_config_path", "load_config"]
 
 CONFIG_PATH_ENV_VAR = "PUSHPUSH_CONFIG"
 
@@ -63,18 +68,38 @@ class Config:
             ) from err
 
 
+def config_dir() -> Path:
+    """pushpush's directory on the machine: `config.toml` and the `0600`
+    `credentials.json`.
+
+    `$XDG_CONFIG_HOME/pushpush` when that variable holds an absolute path, else
+    `~/.config/pushpush` -- the same on every OS (the git / ssh / aws convention),
+    not a platform-native dir. A blank, whitespace-only, or *relative*
+    `XDG_CONFIG_HOME` is ignored, per the XDG spec ("a relative path ... must be
+    ignored"): a relative value resolves against the working directory, so a cron
+    run (cwd `/`) and an interactive run (cwd `~`) would otherwise find the config
+    in different places. It has no override key of its own -- config cannot name
+    the directory the config file itself lives in; a caller override is per-file
+    (`PUSHPUSH_CONFIG`, `PUSHPUSH_CREDENTIALS`).
+    """
+    base = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    if base:
+        root = Path(base).expanduser()
+        if root.is_absolute():
+            return root / "pushpush"
+    return Path.home() / ".config" / "pushpush"
+
+
 def default_config_path() -> Path:
     """Where pushpush looks for its configuration.
 
-    `PUSHPUSH_CONFIG` wins; otherwise the XDG location,
+    `PUSHPUSH_CONFIG` wins; otherwise `config.toml` in `config_dir()`,
     `~/.config/pushpush/config.toml`.
     """
     override = os.environ.get(CONFIG_PATH_ENV_VAR)
     if override:
         return Path(override).expanduser()
-    xdg_home = os.environ.get("XDG_CONFIG_HOME")
-    config_home = Path(xdg_home).expanduser() if xdg_home else Path.home() / ".config"
-    return config_home / "pushpush" / "config.toml"
+    return config_dir() / "config.toml"
 
 
 def load_config(path: Path | str | None = None) -> Config:
@@ -143,6 +168,11 @@ def _reject_env_name_collisions(
     route would answer for the other -- exactly the wrong-destination hazard the
     per-route naming exists to prevent. Catch it at load time.
     """
+    # Lazy: credentials imports config_dir from here, so importing these at module
+    # top would be a cycle. The rule enforced here is a credentials concern (its
+    # per-route env-var naming), so its spelling belongs there, read at call time.
+    from pushpush.credentials import SECRET_ENV_VAR, secret_env_suffix
+
     name_by_suffix: dict[str, str] = {}
     for name in route_by_name:
         suffix = secret_env_suffix(name)

@@ -83,7 +83,7 @@ def transport(monkeypatch):
 
 
 @pytest.fixture
-def config_home(monkeypatch, tmp_path):
+def config_dir(monkeypatch, tmp_path):
     """Point config and credentials at tmp, and clear any inherited secret.
 
     So a test neither reads nor writes the operator's real setup, and a
@@ -95,6 +95,6 @@ def config_home(monkeypatch, tmp_path):
     return tmp_path
 
 
-def write_config(config_home, toml_text: str) -> None:
+def write_config(config_dir, toml_text: str) -> None:
     """Write a config.toml into the redirected config directory."""
-    (config_home / "config.toml").write_text(toml_text, encoding="utf-8")
+    (config_dir / "config.toml").write_text(toml_text, encoding="utf-8")

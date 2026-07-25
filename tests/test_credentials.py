@@ -22,62 +22,62 @@ from pushpush.credentials import (
 ALERTS = Route(name="alerts", provider=TELEGRAM, destination="123")
 
 
-def test_store_then_resolve(config_home):
+def test_store_then_resolve(config_dir):
     store_secret(ALERTS, "bot-token-value")
     assert resolve_secret(ALERTS) == "bot-token-value"
 
 
-def test_stored_secret_is_stripped(config_home):
+def test_stored_secret_is_stripped(config_dir):
     store_secret(ALERTS, "  token-with-space\n")
     assert resolve_secret(ALERTS) == "token-with-space"
 
 
-def test_empty_secret_is_refused(config_home):
+def test_empty_secret_is_refused(config_dir):
     with pytest.raises(CredentialsError):
         store_secret(ALERTS, "   ")
 
 
-def test_missing_secret_is_reported(config_home):
+def test_missing_secret_is_reported(config_dir):
     with pytest.raises(MissingSecretError, match="alerts"):
         resolve_secret(ALERTS)
 
 
-def test_per_route_env_beats_the_file(config_home, monkeypatch):
+def test_per_route_env_beats_the_file(config_dir, monkeypatch):
     store_secret(ALERTS, "from-file")
     monkeypatch.setenv("PUSHPUSH_SECRET_ALERTS", "from-env")
     assert resolve_secret(ALERTS) == "from-env"
 
 
-def test_bare_env_is_used_when_no_per_route(config_home, monkeypatch):
+def test_bare_env_is_used_when_no_per_route(config_dir, monkeypatch):
     monkeypatch.setenv("PUSHPUSH_SECRET", "bare-env")
     assert resolve_secret(ALERTS) == "bare-env"
 
 
-def test_per_route_env_beats_bare_env(config_home, monkeypatch):
+def test_per_route_env_beats_bare_env(config_dir, monkeypatch):
     monkeypatch.setenv("PUSHPUSH_SECRET", "bare-env")
     monkeypatch.setenv("PUSHPUSH_SECRET_ALERTS", "per-route-env")
     assert resolve_secret(ALERTS) == "per-route-env"
 
 
-def test_route_name_with_hyphen_folds_to_underscore(config_home, monkeypatch):
+def test_route_name_with_hyphen_folds_to_underscore(config_dir, monkeypatch):
     route = Route(name="team-alerts", provider=TELEGRAM, destination="1")
     monkeypatch.setenv("PUSHPUSH_SECRET_TEAM_ALERTS", "folded")
     assert resolve_secret(route) == "folded"
 
 
-def test_delete_removes_the_secret(config_home):
+def test_delete_removes_the_secret(config_dir):
     store_secret(ALERTS, "token")
     delete_secret(ALERTS)
     with pytest.raises(MissingSecretError):
         resolve_secret(ALERTS)
 
 
-def test_delete_is_idempotent(config_home):
+def test_delete_is_idempotent(config_dir):
     delete_secret(ALERTS)  # nothing stored; must not raise
     delete_secret(ALERTS)
 
 
-def test_store_preserves_other_routes(config_home):
+def test_store_preserves_other_routes(config_dir):
     other = Route(name="team", provider=TELEGRAM, destination="9")
     store_secret(ALERTS, "alerts-token")
     store_secret(other, "team-token")
@@ -86,14 +86,14 @@ def test_store_preserves_other_routes(config_home):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="file mode is only real on POSIX")
-def test_stored_file_is_owner_only(config_home):
+def test_stored_file_is_owner_only(config_dir):
     store_secret(ALERTS, "token")
     mode = default_credentials_path().stat().st_mode
     assert not (mode & (stat.S_IRWXG | stat.S_IRWXO))
 
 
 @pytest.mark.skipif(os.name != "posix", reason="file mode is only real on POSIX")
-def test_world_readable_file_is_refused(config_home):
+def test_world_readable_file_is_refused(config_dir):
     store_secret(ALERTS, "token")
     path = default_credentials_path()
     path.chmod(0o644)
@@ -101,7 +101,7 @@ def test_world_readable_file_is_refused(config_home):
         resolve_secret(ALERTS)
 
 
-def test_non_json_file_is_reported(config_home):
+def test_non_json_file_is_reported(config_dir):
     path = default_credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("not json", encoding="utf-8")
@@ -111,7 +111,7 @@ def test_non_json_file_is_reported(config_home):
         resolve_secret(ALERTS)
 
 
-def _write_store(config_home, text: str):
+def _write_store(config_dir, text: str):
     path = default_credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -120,19 +120,19 @@ def _write_store(config_home, text: str):
     return path
 
 
-def test_json_that_is_not_an_object_is_reported(config_home):
-    _write_store(config_home, "[]")
+def test_json_that_is_not_an_object_is_reported(config_dir):
+    _write_store(config_dir, "[]")
     with pytest.raises(CredentialsError, match="route name"):
         resolve_secret(ALERTS)
 
 
-def test_non_string_secret_value_is_reported(config_home):
-    _write_store(config_home, '{"alerts": 123}')
+def test_non_string_secret_value_is_reported(config_dir):
+    _write_store(config_dir, '{"alerts": 123}')
     with pytest.raises(CredentialsError, match="route name"):
         resolve_secret(ALERTS)
 
 
-def test_unreadable_store_is_reported(config_home):
+def test_unreadable_store_is_reported(config_dir):
     path = default_credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.mkdir()  # read_text -> IsADirectoryError (OSError)
@@ -142,7 +142,7 @@ def test_unreadable_store_is_reported(config_home):
         resolve_secret(ALERTS)
 
 
-def test_non_utf8_store_is_reported(config_home):
+def test_non_utf8_store_is_reported(config_dir):
     path = default_credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"\xff\xfe")
@@ -152,7 +152,7 @@ def test_non_utf8_store_is_reported(config_home):
         resolve_secret(ALERTS)
 
 
-def test_failed_atomic_replace_leaves_the_store_intact(config_home, monkeypatch):
+def test_failed_atomic_replace_leaves_the_store_intact(config_dir, monkeypatch):
     store_secret(ALERTS, "original-token")
 
     def fail_replace(*args, **kwargs):
