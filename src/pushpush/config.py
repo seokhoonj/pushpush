@@ -78,13 +78,19 @@ def config_dir() -> Path:
     `XDG_CONFIG_HOME` is ignored, per the XDG spec ("a relative path ... must be
     ignored"): a relative value resolves against the working directory, so a cron
     run (cwd `/`) and an interactive run (cwd `~`) would otherwise find the config
-    in different places. It has no override key of its own -- config cannot name
-    the directory the config file itself lives in; a caller override is per-file
-    (`PUSHPUSH_CONFIG`, `PUSHPUSH_CREDENTIALS`).
+    in different places. A leading `~` is expanded first, so `~/config` is honored
+    once it resolves to an absolute path; a value still relative after expansion --
+    including a `~user` that names no such user -- is ignored, not an error. It has
+    no override key of its own -- config cannot name the directory the config file
+    itself lives in; a caller override is per-file (`PUSHPUSH_CONFIG`,
+    `PUSHPUSH_CREDENTIALS`).
     """
     base = os.environ.get("XDG_CONFIG_HOME", "").strip()
     if base:
-        root = Path(base).expanduser()
+        try:
+            root = Path(base).expanduser()
+        except RuntimeError:
+            root = Path(base)  # unresolvable `~user`: stays relative, so it falls back
         if root.is_absolute():
             return root / "pushpush"
     return Path.home() / ".config" / "pushpush"
@@ -95,10 +101,15 @@ def default_config_path() -> Path:
 
     `PUSHPUSH_CONFIG` wins; otherwise `config.toml` in `config_dir()`,
     `~/.config/pushpush/config.toml`.
+
+    Raises
+    ------
+    ConfigError
+        `PUSHPUSH_CONFIG` names a path with an unresolvable `~user`.
     """
     override = os.environ.get(CONFIG_PATH_ENV_VAR)
     if override:
-        return Path(override).expanduser()
+        return _expand_named_path(override, source=CONFIG_PATH_ENV_VAR)
     return config_dir() / "config.toml"
 
 
@@ -108,11 +119,16 @@ def load_config(path: Path | str | None = None) -> Config:
     Raises
     ------
     ConfigError
-        The file is missing, is not valid TOML, or omits something required.
+        The file is missing, is not valid TOML, omits something required, or the
+        given path has an unresolvable `~user`.
     UnknownProviderError
         A route names a provider pushpush does not know.
     """
-    path = Path(path).expanduser() if path is not None else default_config_path()
+    path = (
+        _expand_named_path(path, source="the config path")
+        if path is not None
+        else default_config_path()
+    )
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as err:
@@ -129,6 +145,22 @@ def load_config(path: Path | str | None = None) -> Config:
     except tomllib.TOMLDecodeError as err:
         raise ConfigError(f"{path} is not valid TOML: {err}") from err
     return _as_config(document, path=path)
+
+
+def _expand_named_path(value: str | Path, *, source: str) -> Path:
+    """Expand `~` in a caller-named path, turning an unresolvable `~user` into a
+    ConfigError.
+
+    Unlike `config_dir`, which silently ignores an unusable `XDG_CONFIG_HOME`, a
+    path the caller named explicitly must not be silently dropped -- a typo should
+    surface, not be swallowed. A `~user` that names nobody makes `Path.expanduser`
+    raise RuntimeError, which would bypass the ConfigError catch surface `send`
+    documents; convert it.
+    """
+    try:
+        return Path(value).expanduser()
+    except RuntimeError as err:
+        raise ConfigError(f"{source} {value!r} names no home directory") from err
 
 
 def _as_config(document: dict[str, Any], *, path: Path) -> Config:

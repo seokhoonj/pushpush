@@ -162,3 +162,28 @@ def test_config_dir_ignores_a_relative_xdg_home(monkeypatch):
 def test_config_dir_ignores_a_blank_xdg_home(monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", "   ")
     assert config_dir() == Path.home() / ".config" / "pushpush"
+
+
+def test_config_dir_ignores_an_empty_xdg_home(monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", "")
+    assert config_dir() == Path.home() / ".config" / "pushpush"
+
+
+def test_config_dir_ignores_an_unresolvable_tilde_user(monkeypatch):
+    # `~nouser/x` cannot be expanded (no such user) -> Path.expanduser raises
+    # RuntimeError; the value stays relative, so it is ignored, not fatal.
+    monkeypatch.setenv("XDG_CONFIG_HOME", "~nosuchuser_zzz/config")
+    assert config_dir() == Path.home() / ".config" / "pushpush"
+
+
+def test_config_override_with_unresolvable_tilde_user_is_config_error(monkeypatch):
+    # An explicit PUSHPUSH_CONFIG is not silently dropped like a bad XDG value;
+    # the unresolvable `~user` surfaces as ConfigError, not a bare RuntimeError.
+    monkeypatch.setenv("PUSHPUSH_CONFIG", "~nosuchuser_zzz/config.toml")
+    with pytest.raises(ConfigError, match="names no home directory"):
+        load_config()
+
+
+def test_explicit_path_with_unresolvable_tilde_user_is_config_error():
+    with pytest.raises(ConfigError, match="names no home directory"):
+        load_config("~nosuchuser_zzz/config.toml")

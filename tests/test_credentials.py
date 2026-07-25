@@ -2,6 +2,7 @@
 
 import os
 import stat
+from pathlib import Path
 
 import pytest
 
@@ -166,3 +167,21 @@ def test_failed_atomic_replace_leaves_the_store_intact(config_dir, monkeypatch):
     assert resolve_secret(ALERTS) == "original-token"  # old store untouched
     staged = list(default_credentials_path().parent.glob("*.tmp"))
     assert staged == []  # the staged temp was cleaned up
+
+
+def test_a_relative_xdg_home_never_places_the_secret_under_the_cwd(monkeypatch):
+    monkeypatch.delenv("PUSHPUSH_CREDENTIALS", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", "relative/path")
+    assert default_credentials_path() == (
+        Path.home() / ".config" / "pushpush" / "credentials.json"
+    )
+
+
+def test_credentials_override_with_unresolvable_tilde_user_is_credentials_error(
+    monkeypatch,
+):
+    # An explicit PUSHPUSH_CREDENTIALS is not silently dropped; the unresolvable
+    # `~user` surfaces as CredentialsError, not a bare RuntimeError.
+    monkeypatch.setenv("PUSHPUSH_CREDENTIALS", "~nosuchuser_zzz/credentials.json")
+    with pytest.raises(CredentialsError, match="names no home directory"):
+        default_credentials_path()

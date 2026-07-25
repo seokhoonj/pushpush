@@ -53,12 +53,22 @@ CREDENTIALS_FILE_MODE = 0o600
 def default_credentials_path() -> Path:
     """Where pushpush looks for stored secrets.
 
-    `PUSHPUSH_CREDENTIALS` wins; otherwise it sits beside the configuration, at
-    `~/.config/pushpush/credentials.json`.
+    `PUSHPUSH_CREDENTIALS` wins; otherwise `credentials.json` in `config_dir()`,
+    beside the configuration at `~/.config/pushpush/credentials.json`.
+
+    Raises
+    ------
+    CredentialsError
+        `PUSHPUSH_CREDENTIALS` names a path with an unresolvable `~user`.
     """
     override = os.environ.get(CREDENTIALS_PATH_ENV_VAR)
     if override:
-        return Path(override).expanduser()
+        try:
+            return Path(override).expanduser()
+        except RuntimeError as err:
+            raise CredentialsError(
+                f"{CREDENTIALS_PATH_ENV_VAR} {override!r} names no home directory"
+            ) from err
     return config_dir() / "credentials.json"
 
 
