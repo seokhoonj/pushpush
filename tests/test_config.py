@@ -4,8 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from pushpush import TELEGRAM, ConfigError, UnknownProviderError, UnknownRouteError
-from pushpush.config import config_dir, load_config
+from pushpush import (
+    TELEGRAM,
+    ConfigError,
+    PushpushError,
+    UnknownProviderError,
+    UnknownRouteError,
+)
+from pushpush.config import config_dir, default_config_path, load_config
+from pushpush.credentials import default_credentials_path
 from tests.conftest import write_config
 
 
@@ -187,3 +194,24 @@ def test_config_override_with_unresolvable_tilde_user_is_config_error(monkeypatc
 def test_explicit_path_with_unresolvable_tilde_user_is_config_error():
     with pytest.raises(ConfigError, match="names no home directory"):
         load_config("~nosuchuser_zzz/config.toml")
+
+
+def test_no_runtime_error_escapes_path_resolution(monkeypatch):
+    # RuntimeError in path resolution has exactly two sources -- Path.home() and
+    # Path.expanduser(). Force both to fail and assert every resolver that send()
+    # reaches raises PushpushError, never a bare RuntimeError that would bypass
+    # send()'s documented catch surface. This locks the whole class, not one site.
+    def boom(*args, **kwargs):
+        raise RuntimeError("no home directory")
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: boom()))
+    monkeypatch.setattr(Path, "expanduser", boom)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("PUSHPUSH_CONFIG", "~broken/config.toml")
+    monkeypatch.setenv("PUSHPUSH_CREDENTIALS", "~broken/credentials.json")
+
+    for resolve in (config_dir, default_config_path, default_credentials_path):
+        with pytest.raises(PushpushError):
+            resolve()
+    with pytest.raises(PushpushError):
+        load_config("~broken/config.toml")

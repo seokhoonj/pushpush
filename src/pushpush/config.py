@@ -84,6 +84,13 @@ def config_dir() -> Path:
     no override key of its own -- config cannot name the directory the config file
     itself lives in; a caller override is per-file (`PUSHPUSH_CONFIG`,
     `PUSHPUSH_CREDENTIALS`).
+
+    Raises
+    ------
+    ConfigError
+        No absolute `XDG_CONFIG_HOME` was given and no home directory can be
+        determined for the `~/.config` fallback (HOME unset and the process's uid
+        has no passwd entry).
     """
     base = os.environ.get("XDG_CONFIG_HOME", "").strip()
     if base:
@@ -93,7 +100,18 @@ def config_dir() -> Path:
             root = Path(base)  # unresolvable `~user`: stays relative, so it falls back
         if root.is_absolute():
             return root / "pushpush"
-    return Path.home() / ".config" / "pushpush"
+    try:
+        home = Path.home()
+    except RuntimeError as err:
+        # No absolute XDG_CONFIG_HOME and no determinable home (HOME unset and the
+        # process's uid has no passwd entry -- the arbitrary-uid container this
+        # function's docstring names). A bare RuntimeError here would bypass the
+        # PushpushError catch surface send() documents, so convert it.
+        raise ConfigError(
+            "cannot locate ~/.config/pushpush: no home directory "
+            "(set HOME or an absolute XDG_CONFIG_HOME)"
+        ) from err
+    return home / ".config" / "pushpush"
 
 
 def default_config_path() -> Path:
