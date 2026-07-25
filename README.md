@@ -68,8 +68,7 @@ text.
 pushpush installs itself and nothing else -- no other libraries come along.
 
 ```sh
-pip install pushpush                                        # once it is on PyPI
-pip install git+https://github.com/seokhoonj/pushpush.git   # until then
+pip install pushpush
 ```
 
 Check it worked:

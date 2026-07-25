@@ -64,8 +64,7 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 pushpush는 자기 자신만 설치한다 -- 다른 라이브러리를 함께 끌어오지 않는다.
 
 ```sh
-pip install pushpush                                        # PyPI에 올라간 뒤
-pip install git+https://github.com/seokhoonj/pushpush.git   # 그 전까지
+pip install pushpush
 ```
 
 잘 됐는지 확인:
