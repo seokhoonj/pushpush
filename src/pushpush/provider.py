@@ -108,9 +108,11 @@ class Provider(ABC):
     needs_destination: ClassVar[bool]
     supported_markups: ClassVar[frozenset[Markup]]
     # None where the service publishes no fixed limit small enough to pre-check.
-    max_media_bytes: ClassVar[int | None]
-    max_text_len: ClassVar[int | None]
-    max_caption_len: ClassVar[int | None]
+    # Default to None so a provider that omits a limit skips that screen rather
+    # than raising AttributeError; a real provider still sets the ones it has.
+    max_media_bytes: ClassVar[int | None] = None
+    max_text_chars: ClassVar[int | None] = None
+    max_caption_chars: ClassVar[int | None] = None
 
     def __repr__(self) -> str:
         return f"<Provider {self.name}>"
@@ -128,7 +130,10 @@ class Provider(ABC):
             The media file is over the service's limit.
         InvalidPushError
             The route needs a destination the service was not given, or the text
-            or media caption is longer than the service accepts.
+            or media caption is longer than the service accepts. When media is
+            attached, the words riding with it (an explicit caption, or the text
+            used as one) are screened against the caption limit, which is often
+            lower than the plain-text limit.
         """
         if push.markup not in self.supported_markups:
             renders = ", ".join(sorted(self.supported_markups))
@@ -166,21 +171,21 @@ class Provider(ABC):
                 )
 
     def _check_text_len(self, text: str) -> None:
-        if self.max_text_len is not None and len(text) > self.max_text_len:
+        if self.max_text_chars is not None and len(text) > self.max_text_chars:
             raise InvalidPushError(
                 f"the text is {len(text):,} characters; {self.name} accepts up to "
-                f"{self.max_text_len:,}"
+                f"{self.max_text_chars:,}"
             )
 
     def _check_caption_len(self, caption: str | None) -> None:
         if (
             caption is not None
-            and self.max_caption_len is not None
-            and len(caption) > self.max_caption_len
+            and self.max_caption_chars is not None
+            and len(caption) > self.max_caption_chars
         ):
             raise InvalidPushError(
                 f"the caption is {len(caption):,} characters; {self.name} accepts "
-                f"up to {self.max_caption_len:,}"
+                f"up to {self.max_caption_chars:,}"
             )
 
     @abstractmethod
@@ -227,8 +232,8 @@ class TelegramProvider(Provider):
     needs_destination = True
     supported_markups = frozenset({"plain", "markdown", "html"})
     max_media_bytes = 50 * 1024 * 1024  # sendDocument upload ceiling
-    max_text_len = 4096  # sendMessage's text cap
-    max_caption_len = 1024  # sendPhoto/sendDocument caption cap
+    max_text_chars = 4096  # sendMessage's text cap
+    max_caption_chars = 1024  # sendPhoto/sendDocument caption cap
     # sendPhoto's own cap is lower, so an image is checked against this instead.
     PHOTO_MAX_BYTES: ClassVar[int] = 10 * 1024 * 1024
 
@@ -334,8 +339,8 @@ class DiscordProvider(Provider):
     # The unboosted webhook upload cap; boosted servers allow more, but pre-checking
     # against the floor keeps an oversize file from failing halfway up the wire.
     max_media_bytes = 8 * 1024 * 1024
-    max_text_len = 2000  # a webhook message's content cap
-    max_caption_len = 2000  # media rides with the same content field
+    max_text_chars = 2000  # a webhook message's content cap
+    max_caption_chars = 2000  # media rides with the same content field
 
     def validate(self, *, secret: str, destination: str | None, push: Push) -> None:
         super().validate(secret=secret, destination=destination, push=push)
@@ -413,8 +418,8 @@ class SlackProvider(Provider):
     needs_destination = False  # webhook mode; bot mode is checked in validate
     supported_markups = frozenset({"plain", "markdown"})
     max_media_bytes = None  # Slack enforces its own workspace limit
-    max_text_len = None  # Slack accepts long text and blocks/splits it itself
-    max_caption_len = None
+    max_text_chars = None  # Slack accepts long text and blocks/splits it itself
+    max_caption_chars = None
 
     POST_MESSAGE_URL: ClassVar[str] = "https://slack.com/api/chat.postMessage"
     GET_UPLOAD_URL: ClassVar[str] = (

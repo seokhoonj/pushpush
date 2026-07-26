@@ -368,19 +368,49 @@ def test_text_at_the_provider_limit_is_accepted():
 
 
 def test_slack_does_not_screen_text_length():
-    # max_text_len is None: Slack accepts long text and blocks/splits it itself.
+    # max_text_chars is None: Slack accepts long text and blocks/splits it itself.
     SLACK.validate(secret=SLACK_WEBHOOK, destination=None, push=Push(text="x" * 100000))
 
 
-def test_a_media_caption_uses_the_caption_limit_not_the_text_limit(tmp_path):
-    # A caption is screened against the caption limit (Telegram 1024), not the text
-    # limit (4096): a 2000-char caption is under 4096 yet still refused for exceeding
-    # 1024, so the two limits are genuinely distinct.
+def test_telegram_caption_uses_its_own_limit_at_the_boundary(tmp_path):
+    # A caption is screened against the caption limit (1024), not the text limit
+    # (4096): 1024 passes, 1025 is refused, and a 2000-char caption -- under 4096 --
+    # is still refused, so the two limits are genuinely distinct.
     pdf = _pdf(tmp_path)
     TELEGRAM.validate(
         secret="T", destination="1", push=Push(media=pdf, caption="x" * 1024)
     )
+    for over in (1025, 2000):
+        with pytest.raises(InvalidPushError, match="caption"):
+            TELEGRAM.validate(
+                secret="T", destination="1", push=Push(media=pdf, caption="x" * over)
+            )
+
+
+def test_discord_caption_at_and_over_the_limit(tmp_path):
+    pdf = _pdf(tmp_path)
+    DISCORD.validate(
+        secret=WEBHOOK, destination=None, push=Push(media=pdf, caption="x" * 2000)
+    )
+    with pytest.raises(InvalidPushError, match="caption"):
+        DISCORD.validate(
+            secret=WEBHOOK, destination=None, push=Push(media=pdf, caption="x" * 2001)
+        )
+
+
+def test_media_text_without_a_caption_is_screened_as_the_caption(tmp_path):
+    # With media and text but no caption, the text rides as the caption, so it is
+    # screened against the caption limit (1024), not the text limit.
+    pdf = _pdf(tmp_path)
+    TELEGRAM.validate(
+        secret="T", destination="1", push=Push(media=pdf, text="x" * 1024)
+    )
     with pytest.raises(InvalidPushError, match="caption"):
         TELEGRAM.validate(
-            secret="T", destination="1", push=Push(media=pdf, caption="x" * 2000)
+            secret="T", destination="1", push=Push(media=pdf, text="x" * 1025)
         )
+
+
+def test_media_only_has_no_words_to_screen(tmp_path):
+    # caption_or_text is None; the caption screen must not crash on it.
+    TELEGRAM.validate(secret="T", destination="1", push=Push(media=_pdf(tmp_path)))
