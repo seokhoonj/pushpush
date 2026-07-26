@@ -350,3 +350,37 @@ def test_html_is_telegram_only():
         SLACK.validate(secret=SLACK_WEBHOOK, destination=None, push=html)
     with pytest.raises(MarkupUnsupportedError):
         DISCORD.validate(secret=WEBHOOK, destination=None, push=html)
+
+
+# -- Text length ------------------------------------------------------------
+
+
+def test_text_over_the_provider_limit_is_rejected():
+    with pytest.raises(InvalidPushError, match="characters"):
+        TELEGRAM.validate(secret="T", destination="1", push=Push(text="x" * 4097))
+    with pytest.raises(InvalidPushError, match="characters"):
+        DISCORD.validate(secret=WEBHOOK, destination=None, push=Push(text="x" * 2001))
+
+
+def test_text_at_the_provider_limit_is_accepted():
+    TELEGRAM.validate(secret="T", destination="1", push=Push(text="x" * 4096))
+    DISCORD.validate(secret=WEBHOOK, destination=None, push=Push(text="x" * 2000))
+
+
+def test_slack_does_not_screen_text_length():
+    # max_text_len is None: Slack accepts long text and blocks/splits it itself.
+    SLACK.validate(secret=SLACK_WEBHOOK, destination=None, push=Push(text="x" * 100000))
+
+
+def test_a_media_caption_uses_the_caption_limit_not_the_text_limit(tmp_path):
+    # A caption is screened against the caption limit (Telegram 1024), not the text
+    # limit (4096): a 2000-char caption is under 4096 yet still refused for exceeding
+    # 1024, so the two limits are genuinely distinct.
+    pdf = _pdf(tmp_path)
+    TELEGRAM.validate(
+        secret="T", destination="1", push=Push(media=pdf, caption="x" * 1024)
+    )
+    with pytest.raises(InvalidPushError, match="caption"):
+        TELEGRAM.validate(
+            secret="T", destination="1", push=Push(media=pdf, caption="x" * 2000)
+        )
