@@ -14,7 +14,10 @@ def test_version_is_present():
 def test_the_distribution_and_runtime_versions_agree():
     # The version is written twice on purpose -- in pyproject.toml, which the
     # build reads into the distribution metadata, and as __version__ -- so this
-    # asserts the two never drift apart.
+    # asserts the two never drift apart. It reads install-time metadata, so it is
+    # trustworthy only from a fresh install (what CI does); a stale editable venv
+    # can pass with both values equally stale, which is why the release gate
+    # (publish.yml) re-runs it on a clean install of the release commit.
     assert importlib.metadata.version("pushpush") == pushpush.__version__
 
 
