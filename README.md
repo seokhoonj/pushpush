@@ -56,6 +56,24 @@ file upload at all -- a media push on a webhook route is refused clearly with
 `MediaUnsupportedError`, so send it via Telegram or Discord, or put a link in the
 text.
 
+### Limits, checked before the send
+
+Each service publishes fixed limits; pushpush checks them at the call site and
+refuses an over-limit push -- `InvalidPushError` for text or a caption,
+`MediaTooLargeError` for a file -- rather than letting it fail mid-flight.
+
+| Service | Text | Media caption | File |
+|---|---|---|---|
+| Telegram | 4096 chars | 1024 chars | 50 MB (10 MB for a photo) |
+| Discord | 2000 chars | 2000 chars | 8 MB |
+| Slack | no local cap | no local cap | workspace limit |
+
+A caption is the words that ride with a file. Because a media caption often has a
+lower cap than a plain-text message (Telegram: 1024 vs 4096), attaching media can
+lower the effective text limit -- the same words that fit as text may be refused
+as a caption. Slack accepts long text and splits or blocks it itself, so pushpush
+does not pre-check its length.
+
 ## Requirements
 
 - **Python 3.11 or newer.** Check with `python --version` in a terminal. (On
@@ -239,7 +257,7 @@ raises right there.
 
 | Exception | When |
 |---|---|
-| `InvalidPushError` | nothing to send (no text, no media), a caption without media, or a destination needed but absent |
+| `InvalidPushError` | nothing to send (no text, no media), a caption without media, a destination needed but absent, or the text or caption over the service's length limit |
 | `MediaError` / `MediaTooLargeError` | the file is missing or not a file / over the service's limit |
 | `MediaUnsupportedError` | the route cannot carry a file (a Slack incoming webhook -- use a bot token) |
 | `MarkupUnsupportedError` | the service does not render that markup (html is Telegram only) |

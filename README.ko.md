@@ -53,6 +53,23 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 보내려 하면 `MediaUnsupportedError`로 분명히 막는다 -- 그럴 땐 Telegram·Discord로
 보내거나 링크를 텍스트에 담는다.
 
+### 발송 전에 확인하는 한도
+
+각 서비스가 정해둔 고정 한도를 pushpush가 호출 지점에서 미리 확인해, 초과하는 push는
+네트워크를 타기 전에 막는다 -- 텍스트·캡션은 `InvalidPushError`, 파일은
+`MediaTooLargeError`.
+
+| 서비스 | 텍스트 | 미디어 캡션 | 파일 |
+|---|---|---|---|
+| Telegram | 4096자 | 1024자 | 50 MB (사진은 10 MB) |
+| Discord | 2000자 | 2000자 | 8 MB |
+| Slack | 로컬 한도 없음 | 로컬 한도 없음 | 워크스페이스 한도 |
+
+캡션은 파일과 함께 실리는 글이다. 미디어 캡션 한도가 평문 텍스트 한도보다 낮은 경우가
+많아서(Telegram: 1024 vs 4096), **미디어를 붙이면 유효 텍스트 한도가 낮아질 수 있다** --
+텍스트로는 들어가는 글이 캡션으로는 거부될 수 있다. Slack은 긴 텍스트를 스스로
+쪼개거나 막으므로 pushpush가 길이를 미리 확인하지 않는다.
+
 ## 준비물
 
 - **Python 3.11 이상.** 터미널에서 `python --version`으로 확인한다. (Windows에서는
@@ -226,7 +243,7 @@ Python API와 같은 설정·시크릿을 읽는다. Python 호출과 달리 발
 
 | 예외 | 언제 |
 |---|---|
-| `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, destination이 필요한데 없음 |
+| `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, destination이 필요한데 없음, 또는 텍스트·캡션이 서비스 길이 한도 초과 |
 | `MediaError` / `MediaTooLargeError` | 파일이 없거나 파일이 아님 / 서비스 한도 초과 |
 | `MediaUnsupportedError` | 그 route가 파일을 못 나름 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
 | `MarkupUnsupportedError` | 그 서비스가 그 서식을 안 그림 (html은 Telegram만) |
