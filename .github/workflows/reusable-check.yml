@@ -1,18 +1,26 @@
 name: reusable check
 
-# The full check -- tests, lint, types, and the wheel-integrity assertions --
-# factored into one reusable job so both `check.yml` (on push / PR) and the
-# release gate in `publish.yml` run the *identical* thing. One definition is what
-# makes "publish gates on the full check" true (PYTHON constitution Ch1 §1.8); a
-# second hand-maintained copy would drift, and a check added here silently would
-# not gate releases.
+# The full check -- tests, lint, types, and the packaging assertions -- factored
+# into one reusable job so both `check.yml` (on push / PR) and the release gate in
+# `publish.yml` run the *identical* thing. One definition is what makes "publish
+# gates on the full check" true; a second hand-maintained copy would drift, and a
+# check added here silently would not gate releases.
 
 on:
   workflow_call:
 
+# The floor lives on the shared body, not only on `check.yml`: `publish.yml`'s gate
+# calls this same workflow, and if the floor were only on `check.yml` the gate would
+# run this check with the repo-default (possibly write) token. Declared here, the
+# check is read-only from every caller. A reusable workflow can only downscope from
+# the caller, so this never widens anyone's token.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +31,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
       - name: Install

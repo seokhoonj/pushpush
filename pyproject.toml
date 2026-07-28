@@ -8,12 +8,12 @@ version = "0.2.3"
 description = "Send a message to Telegram, Slack, or Discord through one call, with the service's own limits checked before anything is sent."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Seokhoon Joo", email = "seokhoonj@gmail.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
