@@ -8,7 +8,7 @@
 [English](README.md) | **한국어**
 
 Telegram·Slack·Discord로 메시지를 보내는 파이썬 패키지. 텍스트와 파일 한 장을
-보내고, 자주 쓰는 대상은 이름(route)으로 저장해두고 부른다.
+보내고, 자주 쓰는 대상은 이름(route)으로 저장해두고 부릅니다.
 
 ```python
 from pushpush import send
@@ -17,15 +17,15 @@ send("반도체 수급 급락 -- 확인 필요", to="alerts")
 send(media="chart.png", caption="today", to="alerts")
 ```
 
-Claude Code를 쓴다면 파이썬을 몰라도 말로 보낼 수 있다 → [Claude Code에서 쓰기](#claude-code에서-쓰기)
+Claude Code를 쓴다면 파이썬을 몰라도 말로 보낼 수 있습니다 → [Claude Code에서 쓰기](#claude-code에서-쓰기)
 
-Windows·macOS·Linux에서 동작한다. 설치되는 것은 이 패키지뿐이고, 다른 라이브러리를
-함께 끌어오지 않는다 -- 표준 라이브러리의 `urllib` 하나로 전송한다.
+Windows·macOS·Linux에서 동작합니다. 설치되는 것은 이 패키지뿐이고, 다른 라이브러리를
+함께 끌어오지 않습니다 -- 표준 라이브러리의 `urllib` 하나로 전송합니다.
 
 ## 구조 한눈에
 
 `send()` 한 번은 route를 풀고, secret을 찾고, provider가 요청을 짜고, 서비스가
-못 받을 것은 네트워크를 타기 전에 막고, 결과를 `SendReceipt`로 돌려준다.
+못 받을 것은 네트워크를 타기 전에 막고, 결과를 `SendReceipt`로 돌려줍니다.
 
 ```mermaid
 flowchart TB
@@ -49,14 +49,14 @@ flowchart TB
 | Slack | O | 봇 토큰만 | 웹훅 URL 또는 봇 토큰(xoxb) |
 
 Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, route의 `destination`이
-채널 id(`C…`)여야 한다. 웹훅에는 파일 업로드 기능이 아예 없어서, 웹훅 route로 미디어를
-보내려 하면 `MediaUnsupportedError`로 분명히 막는다 -- 그럴 땐 Telegram·Discord로
-보내거나 링크를 텍스트에 담는다.
+채널 id(`C…`)여야 합니다. 웹훅에는 파일 업로드 기능이 아예 없어서, 웹훅 route로 미디어를
+보내려 하면 `MediaUnsupportedError`로 분명히 막습니다 -- 그럴 땐 Telegram·Discord로
+보내거나 링크를 텍스트에 담습니다.
 
 ### 발송 전에 확인하는 한도
 
 각 서비스가 정해둔 고정 한도를 pushpush가 호출 지점에서 미리 확인해, 초과하는 push는
-네트워크를 타기 전에 막는다 -- 텍스트·캡션은 `InvalidPushError`, 파일은
+네트워크를 타기 전에 막습니다 -- 텍스트·캡션은 `InvalidPushError`, 파일은
 `MediaTooLargeError`.
 
 | 서비스 | 텍스트 | 미디어 캡션 | 파일 |
@@ -65,20 +65,20 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 | Discord | 2000자 | 2000자 | 8 MB |
 | Slack | 로컬 한도 없음 | 로컬 한도 없음 | 워크스페이스 한도 |
 
-캡션은 파일과 함께 실리는 글이다. 미디어 캡션 한도가 평문 텍스트 한도보다 낮은 경우가
-많아서(Telegram: 1024 vs 4096), **미디어를 붙이면 유효 텍스트 한도가 낮아질 수 있다** --
-텍스트로는 들어가는 글이 캡션으로는 거부될 수 있다. Slack은 긴 텍스트를 스스로
-쪼개거나 막으므로 pushpush가 길이를 미리 확인하지 않는다.
+캡션은 파일과 함께 실리는 글입니다. 미디어 캡션 한도가 평문 텍스트 한도보다 낮은 경우가
+많아서(Telegram: 1024 vs 4096), **미디어를 붙이면 유효 텍스트 한도가 낮아질 수 있습니다** --
+텍스트로는 들어가는 글이 캡션으로는 거부될 수 있습니다. Slack은 긴 텍스트를 스스로
+쪼개거나 막으므로 pushpush가 길이를 미리 확인하지 않습니다.
 
 ## 준비물
 
-- **Python 3.11 이상.** 터미널에서 `python --version`으로 확인한다. (Windows에서는
-  `py --version`일 수 있다.)
+- **Python 3.11 이상.** 터미널에서 `python --version`으로 확인합니다. (Windows에서는
+  `py --version`일 수 있습니다.)
 - **보낼 서비스의 자격증명** -- 봇 토큰이나 웹훅 URL. [4. 자격증명 발급](#4-자격증명-발급).
 
 ## 1. 설치
 
-pushpush는 자기 자신만 설치한다 -- 다른 라이브러리를 함께 끌어오지 않는다.
+pushpush는 자기 자신만 설치합니다 -- 다른 라이브러리를 함께 끌어오지 않습니다.
 
 ```sh
 pip install pushpush
@@ -105,15 +105,15 @@ pip install -e ".[dev]"
 
 ## 2. route 설정
 
-route는 "어느 서비스로, 어디에" 한 쌍을 이름으로 저장한 것이다. 보낼 때는 이름만
-부른다(`to="alerts"`). 홈 폴더 아래 `.config/pushpush/config.toml`에 만든다.
+route는 "어느 서비스로, 어디에" 한 쌍을 이름으로 저장한 것입니다. 보낼 때는 이름만
+부릅니다(`to="alerts"`). 홈 폴더 아래 `.config/pushpush/config.toml`에 만듭니다.
 
 | | 경로 |
 |---|---|
 | macOS · Linux | `~/.config/pushpush/config.toml` |
 | Windows | `C:\Users\<사용자이름>\.config\pushpush\config.toml` |
 
-폴더가 없으면 만든다. 내용은 이렇게:
+폴더가 없으면 만듭니다. 내용은 이렇게:
 
 ```toml
 default_route = "alerts"
@@ -131,17 +131,17 @@ provider = "discord"         # 웹훅 URL이 채널까지 가리킨다
 
 `destination`이 필요한 곳과 아닌 곳:
 
-- **Telegram** -- 항상 필요하다. 봇이 메시지를 보낼 chat_id.
-- **Discord** -- 필요 없다. 웹훅 URL이 채널을 이미 가리킨다.
-- **Slack** -- 봇 토큰(xoxb)이면 채널이 필요하다(`destination = "#alerts"`).
-  웹훅 URL이면 필요 없다.
+- **Telegram** -- 항상 필요합니다. 봇이 메시지를 보낼 chat_id.
+- **Discord** -- 필요 없습니다. 웹훅 URL이 채널을 이미 가리킵니다.
+- **Slack** -- 봇 토큰(xoxb)이면 채널이 필요합니다(`destination = "#alerts"`).
+  웹훅 URL이면 필요 없습니다.
 
-route가 하나뿐이면 `default_route`는 생략해도 된다.
+route가 하나뿐이면 `default_route`는 생략해도 됩니다.
 
 ## 3. 자격증명 저장
 
-토큰·웹훅 URL은 비밀이라 설정 파일이 아니라 **권한 600 파일**에 따로 둔다. 대화나
-스크립트에 평문으로 쓰지 말고, 본인 터미널에서 `getpass`로 넣는다:
+토큰·웹훅 URL은 비밀이라 설정 파일이 아니라 **권한 600 파일**에 따로 둡니다. 대화나
+스크립트에 평문으로 쓰지 말고, 본인 터미널에서 `getpass`로 넣습니다:
 
 ```sh
 python -c "
@@ -153,38 +153,38 @@ print('stored')
 "
 ```
 
-`~/.config/pushpush/credentials.json` (권한 600)에 저장된다. 한 번 넣으면 다시 물어볼
-일이 없다. 컨테이너나 일회성 실행에서는 파일 대신 환경변수로 줄 수도 있다:
+`~/.config/pushpush/credentials.json` (권한 600)에 저장됩니다. 한 번 넣으면 다시 물어볼
+일이 없습니다. 컨테이너나 일회성 실행에서는 파일 대신 환경변수로 줄 수도 있습니다:
 
 ```sh
 export PUSHPUSH_SECRET_ALERTS="봇토큰-또는-웹훅URL"
 ```
 
-route가 여럿이면 `PUSHPUSH_SECRET_<ROUTE>`를 쓴다 -- 이름 없는 `PUSHPUSH_SECRET`은
-어느 route의 것인지 말해주지 못해, 한 서비스의 토큰이 다른 서비스로 갈 수 있다.
+route가 여럿이면 `PUSHPUSH_SECRET_<ROUTE>`를 씁니다 -- 이름 없는 `PUSHPUSH_SECRET`은
+어느 route의 것인지 말해주지 못해, 한 서비스의 토큰이 다른 서비스로 갈 수 있습니다.
 
 ## 4. 자격증명 발급
 
 ### Telegram
 
-1. Telegram에서 [@BotFather](https://t.me/BotFather)에게 `/newbot`을 보내 봇을 만든다.
-   끝에 **봇 토큰**(`123456:ABC-...`)을 준다 -- 이게 secret이다.
-2. 만든 봇과 대화를 시작한다(봇은 먼저 말을 걸 수 없다 -- Telegram의 규칙이다).
-3. chat_id를 알아낸다: 봇에게 아무 말이나 보낸 뒤
-   `https://api.telegram.org/bot<토큰>/getUpdates`를 열면 `chat.id`가 보인다. 그 숫자가
-   `destination`이다.
+1. Telegram에서 [@BotFather](https://t.me/BotFather)에게 `/newbot`을 보내 봇을 만듭니다.
+   끝에 **봇 토큰**(`123456:ABC-...`)을 줍니다 -- 이게 secret입니다.
+2. 만든 봇과 대화를 시작합니다(봇은 먼저 말을 걸 수 없습니다 -- Telegram의 규칙입니다).
+3. chat_id를 알아냅니다: 봇에게 아무 말이나 보낸 뒤
+   `https://api.telegram.org/bot<토큰>/getUpdates`를 열면 `chat.id`가 보입니다. 그 숫자가
+   `destination`입니다.
 
 ### Discord
 
 채널 설정 → 연동(Integrations) → 웹후크 → 새 웹후크 → **웹후크 URL 복사**. 그 URL
-전체가 secret이고, `destination`은 필요 없다.
+전체가 secret이고, `destination`은 필요 없습니다.
 
 ### Slack
 
 - **간단한 쪽 -- 웹훅**: [Incoming Webhooks](https://api.slack.com/messaging/webhooks)에서
-  채널당 웹훅 URL을 만든다. URL 전체가 secret, `destination` 불필요.
+  채널당 웹훅 URL을 만듭니다. URL 전체가 secret, `destination` 불필요.
 - **봇 토큰**: 앱을 만들고 `chat:write`(파일도 보내려면 `files:write`) 권한을 준 뒤
-  봇 토큰(`xoxb-...`)을 받는다. `destination`에는 채널을 적는다 -- 텍스트는 `#alerts`
+  봇 토큰(`xoxb-...`)을 받습니다. `destination`에는 채널을 적습니다 -- 텍스트는 `#alerts`
   같은 이름, 파일을 보낼 때는 채널 id `C…`.
 
 ## 보내기
@@ -206,12 +206,12 @@ send("<b>굵게</b>", to="alerts", markup="html")
 send("야간 배치 완료", to="ops", silent=True)
 ```
 
-`to`를 생략하면 `default_route`로 간다. 보낼 것은 `text`나 `media` 중 최소 하나가
-있어야 한다.
+`to`를 생략하면 `default_route`로 갑니다. 보낼 것은 `text`나 `media` 중 최소 하나가
+있어야 합니다.
 
 ### 돌아오는 것
 
-`send`는 `SendReceipt`를 준다 -- 어디로 갔는지와 **서비스의 응답 원본 전체**:
+`send`는 `SendReceipt`를 줍니다 -- 어디로 갔는지와 **서비스의 응답 원본 전체**:
 
 ```python
 receipt = send("hi", to="alerts")
@@ -223,8 +223,8 @@ receipt.response     # 서비스 응답 전체 (읽기 전용)
 
 ## 셸에서 (CLI)
 
-pushpush를 설치하면 `pushpush` 명령도 생긴다 -- 스크립트·크론용으로 `send()`를 감싼
-얇은 래퍼다.
+pushpush를 설치하면 `pushpush` 명령도 생깁니다 -- 스크립트·크론용으로 `send()`를 감싼
+얇은 래퍼입니다.
 
 ```sh
 pushpush send "배포 완료" --to slack
@@ -233,13 +233,13 @@ echo "배치 끝" | pushpush send --to slack     # 본문을 stdin으로
 pushpush routes                                # 설정된 route 목록
 ```
 
-Python API와 같은 설정·시크릿을 읽는다. Python 호출과 달리 발송 전 확인은 하지 않는다 --
-자동화용이다. 대화 중 확인하고 보내려면 아래 Claude Code 스킬을 쓴다.
+Python API와 같은 설정·시크릿을 읽습니다. Python 호출과 달리 발송 전 확인은 하지 않습니다 --
+자동화용입니다. 대화 중 확인하고 보내려면 아래 Claude Code 스킬을 씁니다.
 
 ## 실패는 보내기 전에 잡힌다
 
-서비스가 못 받을 메시지는 네트워크를 타기 전에 호출 지점에서 막힌다 -- 잘못된 전송이
-나중에 조용한 미배달로 오는 대신, 그 자리에서 예외로 뜬다.
+서비스가 못 받을 메시지는 네트워크를 타기 전에 호출 지점에서 막힙니다 -- 잘못된 전송이
+나중에 조용한 미배달로 오는 대신, 그 자리에서 예외로 뜹니다.
 
 | 예외 | 언제 |
 |---|---|
@@ -248,7 +248,7 @@ Python API와 같은 설정·시크릿을 읽는다. Python 호출과 달리 발
 | `MediaUnsupportedError` | 그 route가 파일을 못 나름 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
 | `MarkupUnsupportedError` | 그 서비스가 그 서식을 안 그림 (html은 Telegram만) |
 | `MissingSecretError` | 그 route의 secret이 없음 |
-| `SendFailedError` | 서비스까지 갔는데 거부됨 -- 폐기된 토큰, 틀린 chat_id 등. 서비스가 준 사유를 담고 있다 |
+| `SendFailedError` | 서비스까지 갔는데 거부됨 -- 폐기된 토큰, 틀린 chat_id 등. 서비스가 준 사유를 담고 있습니다 |
 | `urllib.error.URLError` | 네트워크 자체가 실패 -- DNS, 연결 거부, 타임아웃 |
 
 전부 잡으려면:
@@ -265,21 +265,21 @@ except (PushpushError, urllib.error.URLError) as err:
 
 ## Claude Code에서 쓰기
 
-이 저장소에는 `send` skill이 있다: "이거 슬랙으로 보내줘"처럼 말하면 route를 확인하고
-내용을 보여준 뒤 **승인받고서야** 보낸다.
+이 저장소에는 `send` skill이 있습니다: "이거 슬랙으로 보내줘"처럼 말하면 route를 확인하고
+내용을 보여준 뒤 **승인받고서야** 보냅니다.
 
-저장소 자체가 플러그인 마켓플레이스라, Claude Code 안에서 바로 설치한다:
+저장소 자체가 플러그인 마켓플레이스라, Claude Code 안에서 바로 설치합니다:
 
 ```
 /plugin marketplace add seokhoonj/pushpush
 /plugin install pushpush@pushpush
 ```
 
-그다음 `/pushpush:send`(또는 자연어)로 호출한다. skill은 `pushpush` 명령을 부르므로
-패키지도 설치돼 있어야 한다(1단계). 자세한 것은 `skills/send/SKILL.md`.
+그다음 `/pushpush:send`(또는 자연어)로 호출합니다. skill은 `pushpush` 명령을 부르므로
+패키지도 설치돼 있어야 합니다(1단계). 자세한 것은 `plugins/pushpush/skills/send/SKILL.md`.
 
-플러그인 없이 쓰려면, skill을 스킬 폴더에 심링크해 `/send`로 부른다:
+플러그인 없이 쓰려면, skill을 스킬 폴더에 심링크해 `/send`로 부릅니다:
 
 ```sh
-ln -s "$PWD/skills/send" ~/.claude/skills/send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send
 ```

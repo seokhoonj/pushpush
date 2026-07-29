@@ -291,11 +291,11 @@ The repo is its own plugin marketplace, so install it from inside Claude Code:
 ```
 
 Then invoke it with `/pushpush:send` (or plain language). The skill calls the
-`pushpush` command, so install the package too (step 1). See `skills/send/SKILL.md`.
+`pushpush` command, so install the package too (step 1). See `plugins/pushpush/skills/send/SKILL.md`.
 
 Prefer no plugin? Symlink the skill into your skills directory and call it as
 `/send`:
 
 ```sh
-ln -s "$PWD/skills/send" ~/.claude/skills/send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send
 ```
