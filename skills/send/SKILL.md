@@ -1,6 +1,6 @@
 ---
 name: send
-description: Send a result, alert, or file from the conversation to Telegram, Slack, or Discord. Holds no logic of its own -- it calls the pushpush package's send() -- and always shows the destination (route), content, and attachment for approval before sending. Trigger phrases: send to telegram, send to slack, send to discord, push this, send a notification, 텔레그램으로 보내줘, 슬랙으로 보내, 디스코드로 보내, 알림 보내줘, 푸시 보내줘.
+description: "Send a result, alert, or file from the conversation to Telegram, Slack, or Discord. Holds no logic of its own -- it calls the pushpush package's send() -- and always shows the destination (route), content, and attachment for approval before sending. Trigger phrases: send to telegram, send to slack, send to discord, push this, send a notification, 텔레그램으로 보내줘, 슬랙으로 보내, 디스코드로 보내, 알림 보내줘, 푸시 보내줘."
 ---
 
 # pushpush send -- send a conversation result to a messenger
