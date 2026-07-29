@@ -1,0 +1,20 @@
+{
+  "name": "pushpush",
+  "version": "0.1.1",
+  "description": "Send messages and files to Telegram, Slack, or Discord, powered by the pushpush package",
+  "author": { "name": "seokhoonj", "url": "https://github.com/seokhoonj" },
+  "homepage": "https://github.com/seokhoonj/pushpush",
+  "repository": "https://github.com/seokhoonj/pushpush",
+  "license": "MIT",
+  "keywords": ["telegram", "slack", "discord", "notify", "send"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "pushpush",
+    "shortDescription": "Send messages and files to Telegram, Slack, or Discord",
+    "longDescription": "Send a result, alert, or file from a conversation to Telegram, Slack, or Discord via the pushpush package. It shows the destination, content, and attachment for approval before sending.",
+    "developerName": "seokhoonj",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": ["Send this to Telegram"]
+  }
+}

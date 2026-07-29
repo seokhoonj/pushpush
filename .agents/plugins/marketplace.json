@@ -1,0 +1,12 @@
+{
+  "name": "pushpush",
+  "interface": { "displayName": "pushpush" },
+  "plugins": [
+    {
+      "name": "pushpush",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}
