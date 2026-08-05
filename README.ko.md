@@ -281,5 +281,8 @@ except (PushpushError, urllib.error.URLError) as err:
 플러그인 없이 쓰려면, skill을 스킬 폴더에 심링크해 `/send`로 부릅니다:
 
 ```sh
-ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send   # Claude Code → /send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.codex/skills/send    # Codex → $pushpush:send
 ```
+
+Claude Code는 바로 인식하고, Codex는 재시작해야 로딩됩니다.

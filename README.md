@@ -297,5 +297,8 @@ Prefer no plugin? Symlink the skill into your skills directory and call it as
 `/send`:
 
 ```sh
-ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send   # Claude Code -> /send
+ln -s "$PWD/plugins/pushpush/skills/send" ~/.codex/skills/send    # Codex -> $pushpush:send
 ```
+
+Claude Code picks it up immediately; Codex needs a restart to load it.
