@@ -18,7 +18,7 @@ send("chip supply crash -- take a look", to="alerts")
 send(media="chart.png", caption="today", to="alerts")
 ```
 
-Using Claude Code? You can send just by asking, no Python needed → [Use it from Claude Code](#use-it-from-claude-code)
+Using Claude Code? You can send just by asking, no Python needed → [Use it from an AI coding agent](#8-use-it-from-an-ai-coding-agent)
 
 Works on Windows, macOS, and Linux. It installs nothing but itself -- no other
 libraries come along -- and sends over the standard library's `urllib`.
@@ -198,7 +198,7 @@ That whole URL is the secret, and no `destination` is needed.
   files), and get a bot token (`xoxb-...`). Then put the channel in `destination`
   -- a name like `#alerts` for text, or the channel id `C…` when you send files.
 
-## Sending
+## 5. Sending
 
 ```python
 from pushpush import send
@@ -233,7 +233,7 @@ receipt.message_id   # the id the service gave the message (when it returns one)
 receipt.response     # the full service reply (read-only)
 ```
 
-## From the shell
+## 6. From the shell
 
 Installing pushpush also gives you a `pushpush` command -- a thin wrapper over
 `send()` for scripts and cron.
@@ -249,7 +249,7 @@ It reads the same config and secrets as the Python API. Unlike the Python call i
 does not confirm before sending -- it is for automation. For an interactive,
 confirm-before-send flow, use the Claude Code skill below.
 
-## Failures are caught before sending
+## 7. Failures are caught before sending
 
 A message the service could not carry is stopped at the call site, before the
 network -- rather than a bad send arriving later as a silent non-delivery, it
@@ -277,21 +277,36 @@ except (PushpushError, urllib.error.URLError) as err:
     print("could not send:", err)
 ```
 
-## Use it from Claude Code
+## 8. Use it from an AI coding agent
 
 This repo ships a `send` skill: describe what to send in plain words ("send this
 to Telegram") and it confirms the route, shows you the content, and sends only
 after you approve.
 
-The repo is its own plugin marketplace, so install it from inside Claude Code:
+### 8.1 Claude Code
+
+In the Claude Code chat, add the marketplace and install:
 
 ```
 /plugin marketplace add seokhoonj/pushpush
 /plugin install pushpush@pushpush
 ```
 
-Then invoke it with `/pushpush:send` (or plain language). The skill calls the
-`pushpush` command, so install the package too (step 1). See `plugins/pushpush/skills/send/SKILL.md`.
+Then invoke it with `/pushpush:send`, or just ask in plain language. The skill calls
+the `pushpush` command, so install the package too (step 1). See `plugins/pushpush/skills/send/SKILL.md`.
+
+### 8.2 Codex
+
+In your terminal, add the marketplace and install:
+
+```
+codex plugin marketplace add seokhoonj/pushpush
+codex plugin add pushpush@pushpush
+```
+
+The `send` skill responds automatically to matching requests.
+
+### 8.3 By hand (symlink)
 
 Prefer no plugin? Symlink the skill into your skills directory and call it as
 `/send`:

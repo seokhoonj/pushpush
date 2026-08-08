@@ -17,7 +17,7 @@ send("반도체 수급 급락 -- 확인 필요", to="alerts")
 send(media="chart.png", caption="today", to="alerts")
 ```
 
-Claude Code를 쓴다면 파이썬을 몰라도 말로 보낼 수 있습니다 → [Claude Code에서 쓰기](#claude-code에서-쓰기)
+Claude Code를 쓴다면 파이썬을 몰라도 말로 보낼 수 있습니다 → [AI 코딩 에이전트에서 사용](#8-ai-코딩-에이전트에서-사용)
 
 Windows·macOS·Linux에서 동작합니다. 설치되는 것은 이 패키지뿐이고, 다른 라이브러리를
 함께 끌어오지 않습니다 -- 표준 라이브러리의 `urllib` 하나로 전송합니다.
@@ -187,7 +187,7 @@ route가 여럿이면 `PUSHPUSH_SECRET_<ROUTE>`를 씁니다 -- 이름 없는 `P
   봇 토큰(`xoxb-...`)을 받습니다. `destination`에는 채널을 적습니다 -- 텍스트는 `#alerts`
   같은 이름, 파일을 보낼 때는 채널 id `C…`.
 
-## 보내기
+## 5. 보내기
 
 ```python
 from pushpush import send
@@ -221,7 +221,7 @@ receipt.message_id   # 서비스가 준 메시지 id (있을 때)
 receipt.response     # 서비스 응답 전체 (읽기 전용)
 ```
 
-## 셸에서 (CLI)
+## 6. 셸에서 (CLI)
 
 pushpush를 설치하면 `pushpush` 명령도 생깁니다 -- 스크립트·크론용으로 `send()`를 감싼
 얇은 래퍼입니다.
@@ -236,7 +236,7 @@ pushpush routes                                # 설정된 route 목록
 Python API와 같은 설정·시크릿을 읽습니다. Python 호출과 달리 발송 전 확인은 하지 않습니다 --
 자동화용입니다. 대화 중 확인하고 보내려면 아래 Claude Code 스킬을 씁니다.
 
-## 실패는 보내기 전에 잡힌다
+## 7. 실패는 보내기 전에 잡힌다
 
 서비스가 못 받을 메시지는 네트워크를 타기 전에 호출 지점에서 막힙니다 -- 잘못된 전송이
 나중에 조용한 미배달로 오는 대신, 그 자리에서 예외로 뜹니다.
@@ -263,12 +263,14 @@ except (PushpushError, urllib.error.URLError) as err:
     print("보내지 못함:", err)
 ```
 
-## Claude Code에서 쓰기
+## 8. AI 코딩 에이전트에서 사용
 
 이 저장소에는 `send` skill이 있습니다: "이거 슬랙으로 보내줘"처럼 말하면 route를 확인하고
 내용을 보여준 뒤 **승인받고서야** 보냅니다.
 
-저장소 자체가 플러그인 마켓플레이스라, Claude Code 안에서 바로 설치합니다:
+### 8.1 Claude Code
+
+Claude Code 채팅창에서 마켓플레이스를 추가하고 설치합니다:
 
 ```
 /plugin marketplace add seokhoonj/pushpush
@@ -278,7 +280,20 @@ except (PushpushError, urllib.error.URLError) as err:
 그다음 `/pushpush:send`(또는 자연어)로 호출합니다. skill은 `pushpush` 명령을 부르므로
 패키지도 설치돼 있어야 합니다(1단계). 자세한 것은 `plugins/pushpush/skills/send/SKILL.md`.
 
-플러그인 없이 쓰려면, skill을 스킬 폴더에 심링크해 `/send`로 부릅니다:
+### 8.2 Codex
+
+터미널에서 마켓플레이스를 추가하고 설치합니다:
+
+```
+codex plugin marketplace add seokhoonj/pushpush
+codex plugin add pushpush@pushpush
+```
+
+`send` skill이 관련 요청에 자동으로 반응합니다.
+
+### 8.3 플러그인 없이 (symlink)
+
+skill을 스킬 폴더에 심링크해 `/send`로 부릅니다:
 
 ```sh
 ln -s "$PWD/plugins/pushpush/skills/send" ~/.claude/skills/send   # Claude Code → /send
