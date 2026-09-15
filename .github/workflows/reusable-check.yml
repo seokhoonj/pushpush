@@ -53,20 +53,22 @@ jobs:
       - name: Types
         run: .venv/bin/mypy
 
-      - name: Confirm the package still has no runtime dependencies
-        # The zero-dependency claim is in the README and the pyproject comment; a
-        # claim nothing checks quietly stops being true. Installed into a bare
-        # environment, pushpush must import with nothing else present.
+      - name: Confirm the only runtime dependency is credbox
+        # pushpush's one runtime dependency is credbox (itself zero-dependency); the
+        # pyproject comment says so, and a claim nothing checks quietly stops being
+        # true. A bare install must pull in credbox and nothing else, and the package
+        # must import from it.
         run: |
           uv venv /tmp/bare --python ${{ matrix.python-version }}
           uv pip install --python /tmp/bare/bin/python .
           /tmp/bare/bin/python -c "
-          import importlib.metadata as md
+          import importlib.metadata as md, re
           requires = md.requires('pushpush') or []
           runtime = [r for r in requires if 'extra ==' not in r]
-          assert not runtime, f'runtime dependencies appeared: {runtime}'
+          names = sorted({re.split(r'[<>=!~ ;\[]', r, maxsplit=1)[0] for r in runtime})
+          assert names == ['credbox'], f'unexpected runtime dependencies: {runtime}'
           import pushpush
-          print('pushpush', pushpush.__version__, 'imports with no third-party packages')
+          print('pushpush', pushpush.__version__, 'imports with only credbox')
           "
 
       - name: Confirm the console script installed

@@ -82,8 +82,7 @@ def config_dir() -> Path:
     once it resolves to an absolute path; a value still relative after expansion --
     including a `~user` that names no such user -- is ignored, not an error. It has
     no override key of its own -- config cannot name the directory the config file
-    itself lives in; a caller override is per-file (`PUSHPUSH_CONFIG`,
-    `PUSHPUSH_CREDENTIALS`).
+    itself lives in; a caller override is per-file (`PUSHPUSH_CONFIG`).
 
     Raises
     ------
