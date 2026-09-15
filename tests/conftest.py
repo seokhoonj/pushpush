@@ -9,11 +9,19 @@ the request a provider frames and on how it reads each service's answer.
 A real send goes through `dev/smoke_send.py`, outside the suite.
 """
 
+import os
 import types
 
 import pytest
 
-from pushpush.http import HTTPResponse
+# `pushpush.credentials` binds its store via `Credentials.for_app`, which reads
+# PUSHPUSH_STORE_APP / PUSHPUSH_NAMESPACE at import time. Clear a developer's shell
+# values before the first pushpush import below (it pulls credentials in via __init__),
+# so the suite exercises the standalone binding, not an inherited redirect.
+os.environ.pop("PUSHPUSH_STORE_APP", None)
+os.environ.pop("PUSHPUSH_NAMESPACE", None)
+
+from pushpush.http import HTTPResponse  # noqa: E402, I001  (must follow the env cleanup above)
 
 # A Telegram-style success, the reply the fake returns unless a test sets another.
 TELEGRAM_OK = HTTPResponse(
