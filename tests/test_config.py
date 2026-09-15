@@ -12,7 +12,6 @@ from pushpush import (
     UnknownRouteError,
 )
 from pushpush.config import config_dir, default_config_path, load_config
-from pushpush.credentials import default_credentials_path
 from tests.conftest import write_config
 
 
@@ -208,9 +207,8 @@ def test_no_runtime_error_escapes_path_resolution(monkeypatch):
     monkeypatch.setattr(Path, "expanduser", boom)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PUSHPUSH_CONFIG", "~broken/config.toml")
-    monkeypatch.setenv("PUSHPUSH_CREDENTIALS", "~broken/credentials.json")
 
-    for resolve in (config_dir, default_config_path, default_credentials_path):
+    for resolve in (config_dir, default_config_path):
         with pytest.raises(PushpushError):
             resolve()
     with pytest.raises(PushpushError):

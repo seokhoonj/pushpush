@@ -22,7 +22,6 @@ from pathlib import Path
 from pushpush.config import Config, config_dir, default_config_path, load_config
 from pushpush.credentials import (
     SECRET_ENV_VAR,
-    default_credentials_path,
     delete_secret,
     resolve_secret,
     store_secret,
@@ -30,7 +29,6 @@ from pushpush.credentials import (
 from pushpush.errors import (
     ConfigError,
     CredentialsError,
-    InsecureCredentialsError,
     InvalidPushError,
     MarkupUnsupportedError,
     MediaError,
@@ -62,7 +60,6 @@ __all__ = [
     "Config",
     "ConfigError",
     "CredentialsError",
-    "InsecureCredentialsError",
     "InvalidPushError",
     "Markup",
     "MarkupUnsupportedError",
@@ -81,7 +78,6 @@ __all__ = [
     "UnsupportedError",
     "config_dir",
     "default_config_path",
-    "default_credentials_path",
     "delete_secret",
     "load_config",
     "resolve_provider",
@@ -90,7 +86,7 @@ __all__ = [
     "store_secret",
 ]
 
-__version__ = "0.2.3"
+__version__ = "0.3.1"
 
 
 def send(
@@ -152,9 +148,8 @@ def send(
         limit.
     MediaUnsupportedError, MarkupUnsupportedError
         The route's service cannot carry the media, or cannot render the markup.
-    MissingSecretError, InsecureCredentialsError, CredentialsError
-        No secret is stored for the route, the credentials file is world-readable,
-        or it is not readable JSON.
+    MissingSecretError, CredentialsError
+        No secret is stored for the route, or the credential store could not be read.
     SendFailedError
         The service was reached and refused the send -- a revoked token, a bad
         chat id, a message over a limit only the service enforces. Carries the

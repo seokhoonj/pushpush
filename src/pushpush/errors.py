@@ -23,7 +23,6 @@ thing worth surfacing. A caller who must catch every way a send can fail writes:
 __all__ = [
     "ConfigError",
     "CredentialsError",
-    "InsecureCredentialsError",
     "InvalidPushError",
     "MarkupUnsupportedError",
     "MediaError",
@@ -65,10 +64,6 @@ class MissingSecretError(CredentialsError):
     (Discord, Slack incoming webhook) -- the credential that lets the send speak
     for that destination.
     """
-
-
-class InsecureCredentialsError(CredentialsError):
-    """The credentials file is readable by someone other than its owner."""
 
 
 class InvalidPushError(PushpushError, ValueError):

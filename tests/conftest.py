@@ -87,10 +87,12 @@ def config_dir(monkeypatch, tmp_path):
     """Point config and credentials at tmp, and clear any inherited secret.
 
     So a test neither reads nor writes the operator's real setup, and a
-    `PUSHPUSH_SECRET` left in the developer's shell cannot leak into a run.
+    `PUSHPUSH_SECRET` left in the developer's shell cannot leak into a run. The
+    credentials file is credbox's now, under `XDG_CONFIG_HOME/pushpush/`, so
+    redirecting `XDG_CONFIG_HOME` is what isolates it.
     """
     monkeypatch.setenv("PUSHPUSH_CONFIG", str(tmp_path / "config.toml"))
-    monkeypatch.setenv("PUSHPUSH_CREDENTIALS", str(tmp_path / "credentials.json"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv("PUSHPUSH_SECRET", raising=False)
     return tmp_path
 
