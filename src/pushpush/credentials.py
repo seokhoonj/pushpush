@@ -36,11 +36,14 @@ __all__ = [
     "store_secret",
 ]
 
-# The credbox app whose store the secrets live in:
-# ~/.config/pushpush/credentials.json. One facade, reused across calls; credbox resolves
-# the store path per call, so a test that repoints XDG_CONFIG_HOME still isolates it.
+# The credbox app for pushpush's own store, ~/.config/pushpush/credentials.json.
+# `for_app` (not the bare `Credentials(...)`) makes pushpush embeddable: a host that
+# sets PUSHPUSH_STORE_APP / PUSHPUSH_NAMESPACE before importing pushpush redirects the
+# binding into the host's own store under a "pushpush" section, no code change here.
+# credbox resolves the store path per call, so a test repointing XDG_CONFIG_HOME still
+# isolates it.
 _STORE_APP = "pushpush"
-_store = Credentials(_STORE_APP)
+_store = Credentials.for_app(_STORE_APP)
 
 SECRET_ENV_VAR = "PUSHPUSH_SECRET"
 

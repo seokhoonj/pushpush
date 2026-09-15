@@ -28,7 +28,7 @@ classifiers = [
 # credbox owns the credential store: config_dir, the 0600 credentials.json, atomic
 # writes, env-first resolution, and permission hardening. It is itself zero-dependency,
 # so pushpush pulls in no third-party transitive packages.
-dependencies = ["credbox>=0.2.0,<0.3"]
+dependencies = ["credbox>=0.3.0,<0.4"]
 
 [project.scripts]
 pushpush = "pushpush.cli:main"
