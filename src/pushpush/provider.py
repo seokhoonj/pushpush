@@ -128,6 +128,9 @@ class Provider(ABC):
             The push carries media and the service carries only text.
         MediaTooLargeError
             The media file is over the service's limit.
+        MediaError
+            The media path cannot be stat'd -- e.g. it was deleted between the `Push`
+            construction that checked it exists and this validation.
         InvalidPushError
             The route needs a destination the service was not given, or the text
             or media caption is longer than the service accepts. When media is
@@ -161,13 +164,13 @@ class Provider(ABC):
             )
         if self.max_media_bytes is not None:
             try:
-                size = media.stat().st_size
+                media_size_bytes = media.stat().st_size
             except OSError as err:
                 raise MediaError(f"cannot read media at {media}: {err}") from err
-            if size > self.max_media_bytes:
+            if media_size_bytes > self.max_media_bytes:
                 raise MediaTooLargeError(
-                    f"{media.name} is {size:,} bytes; {self.name} accepts up to "
-                    f"{self.max_media_bytes:,}"
+                    f"{media.name} is {media_size_bytes:,} bytes; {self.name} accepts "
+                    f"up to {self.max_media_bytes:,}"
                 )
 
     def _check_text_len(self, text: str) -> None:
@@ -246,13 +249,13 @@ class TelegramProvider(Provider):
         mime_type = mimetypes.guess_type(media.name)[0] or ""
         if mime_type.startswith("image/"):
             try:
-                size = media.stat().st_size
+                media_size_bytes = media.stat().st_size
             except OSError as err:
                 raise MediaError(f"cannot read media at {media}: {err}") from err
-            if size > self.PHOTO_MAX_BYTES:
+            if media_size_bytes > self.PHOTO_MAX_BYTES:
                 raise MediaTooLargeError(
-                    f"{media.name} is {size:,} bytes; Telegram sends images up to "
-                    f"{self.PHOTO_MAX_BYTES:,}"
+                    f"{media.name} is {media_size_bytes:,} bytes; Telegram sends "
+                    f"images up to {self.PHOTO_MAX_BYTES:,}"
                 )
 
     def send_text(
@@ -482,7 +485,8 @@ class SlackProvider(Provider):
         assert push.media is not None  # media send; guaranteed by the caller
         media = read_media(push.media)
         auth = {"Authorization": f"Bearer {secret}"}
-        # 1. Reserve an upload URL for a file of this name and size.
+        # Slack uploads a file in three calls, not one: reserve a URL, PUT the bytes to
+        # it, then attach it to the channel. Step 1 -- reserve, sized so Slack can plan.
         reserved = self._api_result(post_multipart(
             self.GET_UPLOAD_URL,
             fields  = {"filename": media.filename, "length": str(len(media.content))},
@@ -498,13 +502,15 @@ class SlackProvider(Provider):
                 f"Slack accepted the upload reservation but named no target; "
                 f"reply keys: {sorted(reserved)}"
             )
-        # 2. POST the bytes to the reserved URL; it authenticates itself, no header.
+        # Step 2 -- PUT the bytes. The reserved URL authenticates itself, so the bot
+        # Authorization header must NOT be sent here.
         upload_response = post_bytes(upload_url, media.content)
         if upload_response.status >= 400:
             raise SendFailedError(
                 f"Slack refused the file upload: HTTP {upload_response.status}"
             )
-        # 3. Share the file into the channel, with any caption as its comment.
+        # Step 3 -- the call that actually delivers: attach the uploaded file to the
+        # channel, with any caption carried as its comment.
         fields = {
             "files": json.dumps([{"id": file_id, "title": media.filename}]),
             "channel_id": str(destination),

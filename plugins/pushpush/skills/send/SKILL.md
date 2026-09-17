@@ -113,7 +113,7 @@ as-is.** The table below lists only the action to add per exception.
 | `MediaUnsupportedError` | The route cannot carry a file (a Slack webhook -- a bot-token route can). Ask whether to send it via Telegram or Discord, or put a link in the text. |
 | `MediaTooLargeError` | Ask whether to shrink the file or send it on a different route. |
 | `MarkupUnsupportedError` | The service does not render that markup. Ask whether to resend with `markup="plain"`. |
-| `InvalidPushError` | Nothing to send, a caption without media, or a missing destination. Get it from the user and reassemble. |
+| `InvalidPushError` | Nothing to send, a caption without media, a media send with both text and caption, or a missing destination. Get it from the user and reassemble. |
 | `SendFailedError` | The service refused (a revoked token, a wrong chat id). The exception carries the service's own reason. |
 | `UnknownRouteError` / `UnknownProviderError` | A route or provider not in the config. Go to "First setup" below. |
 | `urllib.error.URLError` | The network itself failed. Ask whether to retry shortly. |

@@ -101,14 +101,63 @@ def test_store_preserves_other_routes(config_dir):
     assert resolve_secret(other) == "team-token"
 
 
+def _boom_store(monkeypatch, method):
+    """Point `_get_store()` at a store whose one `method` raises CredBoxError, so the
+    read/write/delete wrapping can be exercised without a real credbox failure."""
+    from credbox import CredBoxError
+
+    class BoomStore:
+        def __getattr__(self, name):
+            if name == method:
+                def raiser(*a, **k):
+                    raise CredBoxError(f"{method} failed")
+                return raiser
+            raise AttributeError(name)
+
+    monkeypatch.setattr("pushpush.credentials._get_store", lambda: BoomStore())
+
+
 def test_a_store_read_failure_is_wrapped_as_credentials_error(config_dir, monkeypatch):
     """A failure inside the credbox store surfaces on pushpush's own hierarchy, so a
     caller catching `CredentialsError` (or `PushpushError`) still catches it."""
-    from credbox import CredBoxError
-
-    def boom(*args, **kwargs):
-        raise CredBoxError("store unreadable")
-
-    monkeypatch.setattr("pushpush.credentials._store.secret", boom)
+    _boom_store(monkeypatch, "secret")
     with pytest.raises(CredentialsError, match="could not be read"):
         resolve_secret(ALERTS)
+
+
+def test_a_store_write_failure_is_wrapped_as_credentials_error(config_dir, monkeypatch):
+    _boom_store(monkeypatch, "set")
+    with pytest.raises(CredentialsError, match="could not store"):
+        store_secret(ALERTS, "token")
+
+
+def test_a_store_delete_failure_is_wrapped_as_error(config_dir, monkeypatch):
+    _boom_store(monkeypatch, "unset")
+    with pytest.raises(CredentialsError, match="could not remove"):
+        delete_secret(ALERTS)
+
+
+def test_a_secret_with_a_control_character_is_refused_without_echoing_it(
+    config_dir, monkeypatch
+):
+    # A token with an interior newline would break a request URL/header with a foreign
+    # error that echoes the token; resolve refuses it as a CredentialsError, and the
+    # error must NOT contain the secret value.
+    monkeypatch.setenv("PUSHPUSH_SECRET_ALERTS", "xoxb-1\n2")
+    with pytest.raises(CredentialsError, match="whitespace or a control char") as e:
+        resolve_secret(ALERTS)
+    assert "xoxb-1" not in str(e.value)
+
+
+def test_a_malformed_store_binding_is_a_credentials_error_not_an_import_crash(
+    config_dir, monkeypatch
+):
+    # A bad PUSHPUSH_NAMESPACE must surface at the call site as a CredentialsError, not
+    # abort `import pushpush` with credbox's foreign InvalidAppNameError.
+    import pushpush.credentials as cred
+
+    cred._get_store.cache_clear()
+    monkeypatch.setenv("PUSHPUSH_NAMESPACE", "../evil")
+    with pytest.raises(CredentialsError, match="store binding is invalid"):
+        resolve_secret(ALERTS)
+    cred._get_store.cache_clear()

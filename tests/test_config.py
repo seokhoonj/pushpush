@@ -7,7 +7,6 @@ import pytest
 from pushpush import (
     TELEGRAM,
     ConfigError,
-    PushpushError,
     UnknownProviderError,
     UnknownRouteError,
 )
@@ -222,8 +221,10 @@ def test_no_runtime_error_escapes_path_resolution(monkeypatch):
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PUSHPUSH_CONFIG", "~broken/config.toml")
 
+    # ConfigError specifically (a PushpushError), not just any PushpushError: the whole
+    # point is that credbox's no-home CredBoxError is translated to the documented type.
     for resolve in (config_dir, default_config_path):
-        with pytest.raises(PushpushError):
+        with pytest.raises(ConfigError):
             resolve()
-    with pytest.raises(PushpushError):
+    with pytest.raises(ConfigError):
         load_config("~broken/config.toml")

@@ -22,6 +22,7 @@ shell-safe suffix (see `_load_secret_from_env`).
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 
 from credbox import BlankSecretError, CredBoxError, Credentials, env_var_prefix
 
@@ -40,12 +41,29 @@ __all__ = [
 # `for_app` (not the bare `Credentials(...)`) makes pushpush embeddable: a host that
 # sets PUSHPUSH_STORE_APP / PUSHPUSH_NAMESPACE before importing pushpush redirects the
 # binding into the host's own store under a "pushpush" section, no code change here.
-# credbox resolves the store path per call, so a test repointing XDG_CONFIG_HOME still
-# isolates it.
 _STORE_APP = "pushpush"
-_store = Credentials.for_app(_STORE_APP)
 
 SECRET_ENV_VAR = "PUSHPUSH_SECRET"
+
+
+@lru_cache(maxsize=1)
+def _get_store() -> Credentials:
+    """pushpush's credential store, built on first use and cached.
+
+    Built lazily rather than at import: `for_app` validates the `PUSHPUSH_STORE_APP` /
+    `PUSHPUSH_NAMESPACE` override eagerly, so a malformed one would raise credbox's
+    `InvalidAppNameError` -- a foreign type -- and abort `import pushpush` itself, in
+    the very host-embedding scenario `for_app` exists to serve. Deferred here, it comes
+    back as a `CredentialsError` (a `PushpushError`) at the send/store call site, in the
+    documented catch surface. credbox resolves the store path per call, so the cached
+    binding still isolates a test that repoints `XDG_CONFIG_HOME`.
+    """
+    try:
+        return Credentials.for_app(_STORE_APP)
+    except CredBoxError as err:
+        raise CredentialsError(
+            f"the pushpush credential store binding is invalid: {err}"
+        ) from err
 
 
 def resolve_secret(route: Route) -> str:
@@ -62,8 +80,9 @@ def resolve_secret(route: Route) -> str:
     MissingSecretError
         Neither the environment nor the file has a secret for this route.
     CredentialsError
-        The credential store could not be read or was refused as unsafe (propagated
-        from the store).
+        The credential store binding is invalid, the store could not be read, or the
+        stored value holds whitespace or a control character (which would break the
+        request URL or a header).
     """
     try:
         # override carries pushpush's own env resolution (the per-route
@@ -73,7 +92,7 @@ def resolve_secret(route: Route) -> str:
         # environment would be read as the alerts secret. It fails loud (a wrong token
         # is refused by the service), not silently, but it is why a route should not be
         # named after a variable that might already be in the environment.
-        secret = _store.secret(
+        secret = _get_store().secret(
             route.name, override=_load_secret_from_env(route)
         )
     except CredBoxError as err:
@@ -81,7 +100,18 @@ def resolve_secret(route: Route) -> str:
             f"the pushpush credential store could not be read: {err}"
         ) from err
     if secret is not None:
-        return secret.reveal()
+        revealed = secret.reveal()
+        # A token or webhook URL goes into a request URL (Telegram) or an Authorization
+        # header (Slack); a stray space or control character there raises a foreign
+        # `InvalidURL`/`ValueError` that echoes the secret in its message. Reject it
+        # here, WITHOUT putting the value in the error, as a clean CredentialsError.
+        if any(ch.isspace() or not ch.isprintable() for ch in revealed):
+            raise CredentialsError(
+                f"the stored secret for route {route.name!r} contains whitespace or a "
+                f"control character, which cannot go in a request URL or header; "
+                f"re-store it without stray characters"
+            )
+        return revealed
     raise MissingSecretError(
         f"no secret stored for route {route.name!r}; put its "
         f"{route.provider.name} token or webhook URL in the store with "
@@ -102,7 +132,7 @@ def store_secret(route: Route, secret: str) -> None:
         than storing nothing), or the store could not be read or written.
     """
     try:
-        _store.set(route.name, value=secret)
+        _get_store().set(route.name, value=secret)
     except BlankSecretError as err:  # credbox refuses a blank/whitespace-only value
         raise CredentialsError(
             f"refusing to store an empty secret for route {route.name!r}; paste the "
@@ -125,7 +155,7 @@ def delete_secret(route: Route) -> None:
         The store could not be written (propagated from the store).
     """
     try:
-        _store.unset(route.name)
+        _get_store().unset(route.name)
     except CredBoxError as err:
         raise CredentialsError(
             f"could not remove the secret for route {route.name!r}: {err}"

@@ -266,7 +266,7 @@ raises right there.
 
 | Exception | When |
 |---|---|
-| `InvalidPushError` | nothing to send (no text, no media), a caption without media, a destination needed but absent, or the text or caption over the service's length limit |
+| `InvalidPushError` | nothing to send (no text, no media), a caption without media, a media send carrying both text and caption (only one can label the file), a destination needed but absent, or the text or caption over the service's length limit |
 | `MediaError` / `MediaTooLargeError` | the file is missing or not a file / over the service's limit |
 | `MediaUnsupportedError` | the route cannot carry a file (a Slack incoming webhook -- use a bot token) |
 | `MarkupUnsupportedError` | the service does not render that markup (html is Telegram only) |

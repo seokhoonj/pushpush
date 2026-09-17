@@ -249,7 +249,7 @@ Python API와 같은 설정·시크릿을 읽습니다. Python 호출과 달리 
 
 | 예외 | 언제 |
 |---|---|
-| `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, destination이 필요한데 없음, 또는 텍스트·캡션이 서비스 길이 한도 초과 |
+| `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, 미디어에 text와 caption을 둘 다 줌(파일 라벨은 하나만), destination이 필요한데 없음, 또는 텍스트·캡션이 서비스 길이 한도 초과 |
 | `MediaError` / `MediaTooLargeError` | 파일이 없거나 파일이 아님 / 서비스 한도 초과 |
 | `MediaUnsupportedError` | 그 route로는 파일을 전송할 수 없음 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
 | `MarkupUnsupportedError` | 그 서비스가 그 서식을 지원하지 않음 (html은 Telegram만) |

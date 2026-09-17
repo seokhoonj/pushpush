@@ -67,6 +67,10 @@ class Push:
         # Whitespace-only text is nothing to say: catch it here so send("") fails
         # at the call site, not on the wire as a service refusal.
         has_words = self.text is not None and self.text.strip() != ""
+        if self.text is not None and not has_words:
+            # Collapse whitespace-only text to None so `caption_or_text` never emits a
+            # blank caption and "has words" stays single-sourced (not re-derived later).
+            object.__setattr__(self, "text", None)
         if not has_words and self.media is None:
             raise InvalidPushError(
                 "a push needs text or media; both are absent, so there is nothing "

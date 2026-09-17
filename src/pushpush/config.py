@@ -114,7 +114,8 @@ def default_config_path() -> Path:
     Raises
     ------
     ConfigError
-        `PUSHPUSH_CONFIG` names a path with an unresolvable `~user`.
+        `PUSHPUSH_CONFIG` names a path with an unresolvable `~user`, or -- when it is
+        unset and the `config_dir()` fallback is used -- no home directory can be found.
     """
     override = os.environ.get(CONFIG_PATH_ENV_VAR)
     if override:
