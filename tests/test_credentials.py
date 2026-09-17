@@ -153,11 +153,12 @@ def test_a_malformed_store_binding_is_a_credentials_error_not_an_import_crash(
     config_dir, monkeypatch
 ):
     # A bad PUSHPUSH_NAMESPACE must surface at the call site as a CredentialsError, not
-    # abort `import pushpush` with credbox's foreign InvalidAppNameError.
+    # abort `import pushpush` with credbox's foreign InvalidAppNameError. credbox
+    # validates the binding lazily, so the fault appears when resolve_secret reads it.
     import pushpush.credentials as cred
 
     cred._get_store.cache_clear()
     monkeypatch.setenv("PUSHPUSH_NAMESPACE", "../evil")
-    with pytest.raises(CredentialsError, match="store binding is invalid"):
+    with pytest.raises(CredentialsError, match="could not be read"):
         resolve_secret(ALERTS)
     cred._get_store.cache_clear()

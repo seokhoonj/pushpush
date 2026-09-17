@@ -15,9 +15,9 @@ import types
 import pytest
 
 # `pushpush.credentials` binds its store via `Credentials.for_app`, which reads
-# PUSHPUSH_STORE_APP / PUSHPUSH_NAMESPACE at import time. Clear a developer's shell
-# values before the first pushpush import below (it pulls credentials in via __init__),
-# so the suite exercises the standalone binding, not an inherited redirect.
+# PUSHPUSH_STORE_APP / PUSHPUSH_NAMESPACE the first time a credential call builds the
+# store. Clear a developer's shell values before the first pushpush import below (it
+# pulls credentials in via __init__), so the suite exercises the standalone binding.
 os.environ.pop("PUSHPUSH_STORE_APP", None)
 os.environ.pop("PUSHPUSH_NAMESPACE", None)
 
@@ -78,6 +78,22 @@ class FakeTransport:
     @property
     def last_multipart(self) -> types.SimpleNamespace:
         return self.multipart_calls[-1]
+
+
+@pytest.fixture(autouse=True)
+def _reset_store_cache():
+    """Clear the lazily-built, process-cached credential store around every test.
+
+    `_get_store` caches one `Credentials` binding for the process (`@lru_cache`); a
+    test that redirects the binding with `PUSHPUSH_STORE_APP` / `PUSHPUSH_NAMESPACE`,
+    or gives it a malformed value, would leave it cached past the env that built it,
+    so the next test inherits it. Clearing around each test keeps it local.
+    """
+    from pushpush.credentials import _get_store
+
+    _get_store.cache_clear()
+    yield
+    _get_store.cache_clear()
 
 
 @pytest.fixture
