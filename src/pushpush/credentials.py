@@ -50,11 +50,12 @@ SECRET_ENV_VAR = "PUSHPUSH_SECRET"
 def _get_store() -> Credentials:
     """pushpush's credential store, built on first use and cached.
 
-    Built lazily rather than at import: `for_app` validates the `PUSHPUSH_STORE_APP` /
-    `PUSHPUSH_NAMESPACE` override eagerly, so a malformed one would raise credbox's
-    `InvalidAppNameError` -- a foreign type -- and abort `import pushpush` itself, in
-    the very host-embedding scenario `for_app` exists to serve. Deferred here, it comes
-    back as a `CredentialsError` (a `PushpushError`) at the send/store call site, in the
+    Built lazily rather than at import so nothing about the store -- a malformed
+    `PUSHPUSH_STORE_APP` / `PUSHPUSH_NAMESPACE` override in the host-embedding scenario
+    `for_app` exists to serve, or another binding fault -- can crash `import pushpush`.
+    Any credbox error building the binding is translated to a `CredentialsError`
+    (a `PushpushError`), so a foreign type never escapes; a fault credbox defers to the
+    first store access surfaces the same way at the send/store call site, in the
     documented catch surface. credbox resolves the store path per call, so the cached
     binding still isolates a test that repoints `XDG_CONFIG_HOME`.
     """
