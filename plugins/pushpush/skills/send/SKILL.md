@@ -86,11 +86,13 @@ argument -- **write it to a file and pipe it in on stdin**:
 
 ```sh
 # after writing the body to <scratchpad>/body.txt:
-pushpush send --to alerts --media /path/to/chart.png --caption "today" \
-    < <scratchpad>/body.txt
+pushpush send --to alerts --media /path/to/chart.png < <scratchpad>/body.txt
 ```
 
-- Drop `--media` and `--caption` when there is no file.
+- Drop `--media` when there is no file to send.
+- For a media send the body labels the file. A short label can go in `--caption`
+  instead of a piped body, but **not both** -- passing both is refused, so nothing you
+  wrote is silently dropped. Show in the approval whichever one you send.
 - Markup is `--markup markdown|html`; deliver without a sound with `--silent`.
 - On success one line, `provider message-id`, is printed to stdout.
 
@@ -107,11 +109,11 @@ as-is.** The table below lists only the action to add per exception.
 | Exception | Action to add |
 |---|---|
 | `MissingSecretError` | **Do not have the user paste a token or webhook URL into the chat.** Point them at the `getpass` command to enter it in their own terminal (README step 3). |
-| `InsecureCredentialsError` | None -- the exception already carries the `chmod 600` command. |
+| `CredentialsError` | The stored secret could not be read (a malformed or unreadable store). The exception carries the detail; the fix is usually to store it again (README step 3). |
 | `MediaUnsupportedError` | The route cannot carry a file (a Slack webhook -- a bot-token route can). Ask whether to send it via Telegram or Discord, or put a link in the text. |
 | `MediaTooLargeError` | Ask whether to shrink the file or send it on a different route. |
 | `MarkupUnsupportedError` | The service does not render that markup. Ask whether to resend with `markup="plain"`. |
-| `InvalidPushError` | Nothing to send, a caption without media, or a missing destination. Get it from the user and reassemble. |
+| `InvalidPushError` | Nothing to send, a caption without media, a media send with both text and caption, or a missing destination. Get it from the user and reassemble. |
 | `SendFailedError` | The service refused (a revoked token, a wrong chat id). The exception carries the service's own reason. |
 | `UnknownRouteError` / `UnknownProviderError` | A route or provider not in the config. Go to "First setup" below. |
 | `urllib.error.URLError` | The network itself failed. Ask whether to retry shortly. |
@@ -121,14 +123,15 @@ as-is.** The table below lists only the action to add per exception.
 A `ConfigError` means the config file is missing. Its format is in the repo's
 `README.md`, steps 2 and 3.
 
-**Do not hardcode paths.** The package decides them from `PUSHPUSH_CONFIG`,
-`PUSHPUSH_CREDENTIALS`, and `XDG_CONFIG_HOME`, so ask the package:
+**Do not hardcode paths.** The package decides them from `PUSHPUSH_CONFIG` and
+`XDG_CONFIG_HOME` (the credential store follows credbox's own resolution), so ask the
+package:
 
 ```sh
 python3 -c "
-from pushpush import default_config_path, default_credentials_path
+from pushpush import config_dir, default_config_path
 print('config:     ', default_config_path())
-print('credentials:', default_credentials_path())
+print('credentials:', config_dir() / 'credentials.json')
 "
 ```
 

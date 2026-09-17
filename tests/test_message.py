@@ -55,11 +55,34 @@ def test_directory_as_media_is_refused(tmp_path):
         Push(media=tmp_path)
 
 
-def test_caption_or_text_prefers_caption(tmp_path):
+def test_media_with_both_text_and_caption_is_refused(tmp_path):
+    # Both would compete to label the one file and one would be silently dropped, so
+    # construction refuses it rather than pick -- the label must be exactly one field.
     chart = tmp_path / "c.png"
     chart.write_bytes(b"x")
-    push = Push(media=chart, caption="from caption", text="from text")
+    with pytest.raises(InvalidPushError, match="either text or caption"):
+        Push(media=chart, caption="from caption", text="from text")
+
+
+def test_caption_or_text_uses_the_caption_when_that_is_the_label(tmp_path):
+    chart = tmp_path / "c.png"
+    chart.write_bytes(b"x")
+    push = Push(media=chart, caption="from caption")
     assert push.caption_or_text == "from caption"
+
+
+def test_whitespace_only_text_with_media_is_normalized_not_sent_blank(tmp_path):
+    # Whitespace-only text carries no words, so it collapses to None: it does not trip
+    # the both-labels refusal, and never rides along to the service as a blank caption.
+    chart = tmp_path / "c.png"
+    chart.write_bytes(b"x")
+    labelled = Push(media=chart, text="  \n ", caption="real caption")
+    assert labelled.text is None
+    assert labelled.caption_or_text == "real caption"
+
+    bare = Push(media=chart, text="   ")
+    assert bare.text is None
+    assert bare.caption_or_text is None  # no blank caption emitted
 
 
 def test_caption_or_text_falls_back_to_text(tmp_path):

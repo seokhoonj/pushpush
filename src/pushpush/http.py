@@ -17,6 +17,7 @@ someone else's release is worth more than the convenience `requests` would add,
 and multipart is a dozen lines to frame by hand.
 """
 
+import http.client
 import json
 import secrets
 import urllib.error
@@ -205,15 +206,28 @@ def _read(request: urllib.request.Request, timeout: float) -> HTTPResponse:
     is read like any other reply and handed back for the provider to interpret. A
     `URLError` that is *not* an `HTTPError` -- the connection never completed --
     propagates, because there is no reply to read.
+
+    A failure *while reading the body* -- a socket timeout, a reset, an incomplete
+    read -- raises a bare `TimeoutError`/`OSError` or `http.client.HTTPException`, not
+    a `URLError`, so it would escape `send()`'s documented `(PushpushError, URLError)`
+    catch surface; the outer handler puts it back on the `URLError` (network-failure)
+    surface the errors module promises.
     """
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return _as_response(response.status, response.read())
-    except urllib.error.HTTPError as error:
-        # An HTTPError is also a readable response object holding a socket; close
-        # it once its body is read rather than leaving it to the garbage collector.
-        with error:
-            return _as_response(error.code, error.read())
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return _as_response(response.status, response.read())
+        except urllib.error.HTTPError as error:
+            # An HTTPError is also a readable response object holding a socket; close
+            # it once its body is read rather than leaving it to the garbage collector.
+            with error:
+                return _as_response(error.code, error.read())
+    except urllib.error.URLError:
+        raise  # a connect-phase failure, already on the network-failure surface
+    except (OSError, http.client.HTTPException) as err:
+        # A body-read failure (see the docstring). `_as_response` is a pure decode, so
+        # nothing inside the try masks a real bug as a network failure.
+        raise urllib.error.URLError(err) from err
 
 
 def _as_response(status: int, raw: bytes) -> HTTPResponse:

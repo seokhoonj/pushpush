@@ -70,7 +70,8 @@ class InvalidPushError(PushpushError, ValueError):
     """The message is not sendable as given.
 
     Raised when there is nothing to send (neither text nor media), when a caption
-    is given without media to caption, or when a route needs a destination -- a
+    is given without media to caption, when a media send carries both text and a
+    caption (only one can label the file), or when a route needs a destination -- a
     Telegram chat id, a Slack channel -- that it does not have.
 
     Also a `ValueError`, which is what a bad argument has always been in Python

@@ -49,8 +49,10 @@ class Push:
     Raises
     ------
     InvalidPushError
-        Neither `text` nor `media` is given, or `caption` is given without
-        `media`. Also a `ValueError`.
+        Neither `text` nor `media` is given; or `caption` is given without `media`;
+        or a media push carries both `text` and `caption`, which would compete to
+        label the one file (a service shows a media file one line, not two). Also a
+        `ValueError`.
     MediaError
         `media` is given but the path does not exist or is not a regular file.
     """
@@ -65,6 +67,10 @@ class Push:
         # Whitespace-only text is nothing to say: catch it here so send("") fails
         # at the call site, not on the wire as a service refusal.
         has_words = self.text is not None and self.text.strip() != ""
+        if self.text is not None and not has_words:
+            # Collapse whitespace-only text to None so `caption_or_text` never emits a
+            # blank caption and "has words" stays single-sourced (not re-derived later).
+            object.__setattr__(self, "text", None)
         if not has_words and self.media is None:
             raise InvalidPushError(
                 "a push needs text or media; both are absent, so there is nothing "
@@ -74,6 +80,14 @@ class Push:
             raise InvalidPushError(
                 "caption labels media, and this push has none; put the words in "
                 "text= instead of caption="
+            )
+        if self.media is not None and self.caption is not None and has_words:
+            # `caption_or_text` can carry only one line to the service, so both being
+            # set would silently drop the text. Refuse it -- the same strictness the
+            # caption-without-media check above applies -- rather than pick one.
+            raise InvalidPushError(
+                "a media push labels the file with either text or caption, not both; "
+                "pass one, so nothing you wrote is silently dropped"
             )
         if self.media is not None:
             self._check_media_readable()
@@ -96,7 +110,8 @@ class Push:
     def caption_or_text(self) -> str | None:
         """The words that ride with the media: the caption, or the text.
 
-        A media send may label the file with either field, and providers should
-        not care which the caller used. Text-only sends do not go through here.
+        A media send labels the file with either field -- never both, which
+        construction refuses -- so providers need not care which the caller used, and
+        neither is silently dropped. Text-only sends do not go through here.
         """
         return self.caption if self.caption is not None else self.text

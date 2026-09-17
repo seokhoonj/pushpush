@@ -7,7 +7,6 @@ import pytest
 from pushpush import (
     TELEGRAM,
     ConfigError,
-    PushpushError,
     UnknownProviderError,
     UnknownRouteError,
 )
@@ -38,6 +37,20 @@ def test_routes_that_fold_to_one_env_var_are_refused(config_dir):
         'default_route = "a-b"\n'
         '[routes."a-b"]\nprovider = "telegram"\ndestination = "1"\n'
         '[routes."a_b"]\nprovider = "telegram"\ndestination = "2"\n',
+    )
+    with pytest.raises(ConfigError):
+        load_config()
+
+
+def test_two_non_ascii_routes_that_fold_together_are_refused(config_dir):
+    # credbox folds every non-ASCII character to `_`, so two Korean names of the same
+    # length collapse to one env-var suffix -- refused for the same wrong-destination
+    # reason as `a-b`/`a_b`, rather than silently sharing PUSHPUSH_SECRET_*.
+    write_config(
+        config_dir,
+        'default_route = "알림"\n'
+        '[routes."알림"]\nprovider = "telegram"\ndestination = "1"\n'
+        '[routes."공지"]\nprovider = "telegram"\ndestination = "2"\n',
     )
     with pytest.raises(ConfigError):
         load_config()
@@ -208,8 +221,10 @@ def test_no_runtime_error_escapes_path_resolution(monkeypatch):
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PUSHPUSH_CONFIG", "~broken/config.toml")
 
+    # ConfigError specifically (a PushpushError), not just any PushpushError: the whole
+    # point is that credbox's no-home CredBoxError is translated to the documented type.
     for resolve in (config_dir, default_config_path):
-        with pytest.raises(PushpushError):
+        with pytest.raises(ConfigError):
             resolve()
-    with pytest.raises(PushpushError):
+    with pytest.raises(ConfigError):
         load_config("~broken/config.toml")
