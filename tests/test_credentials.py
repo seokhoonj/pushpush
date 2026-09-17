@@ -7,6 +7,8 @@ pushpush owns -- and what these tests pin -- is the route-name keying, the
 wrapping of a store failure onto pushpush's own error hierarchy.
 """
 
+import re
+
 import pytest
 
 from pushpush import (
@@ -15,7 +17,12 @@ from pushpush import (
     MissingSecretError,
     Route,
 )
-from pushpush.credentials import delete_secret, resolve_secret, store_secret
+from pushpush.credentials import (
+    delete_secret,
+    resolve_secret,
+    secret_env_suffix,
+    store_secret,
+)
 
 ALERTS = Route(name="alerts", provider=TELEGRAM, destination="123")
 
@@ -60,6 +67,17 @@ def test_per_route_env_beats_bare_env(config_dir, monkeypatch):
 def test_route_name_with_hyphen_folds_to_underscore_env(config_dir, monkeypatch):
     route = Route(name="team-alerts", provider=TELEGRAM, destination="1")
     monkeypatch.setenv("PUSHPUSH_SECRET_TEAM_ALERTS", "folded")
+    assert resolve_secret(route) == "folded"
+
+
+def test_non_ascii_route_name_folds_to_a_shell_exportable_env(config_dir, monkeypatch):
+    # A unicode name must fold to a variable a shell can actually export ([A-Za-z0-9_]);
+    # otherwise the per-route override is unusable and the secret falls back to the bare
+    # name. credbox's fold turns every non-ASCII character into `_`.
+    route = Route(name="알림", provider=TELEGRAM, destination="1")
+    suffix = secret_env_suffix("알림")
+    assert re.fullmatch(r"[A-Za-z0-9_]+", suffix)  # exportable, not the raw "알림"
+    monkeypatch.setenv(f"PUSHPUSH_SECRET_{suffix}", "folded")
     assert resolve_secret(route) == "folded"
 
 

@@ -1,11 +1,13 @@
 """The machine-local config directory, and reading the routes off disk.
 
-`config_dir()` resolves the one directory pushpush keeps on the machine, by hand
-from the env var the XDG spec names -- no `platformdirs` dependency, matching the
-zero-dependency rule. Both files hang off it: `config.toml` here, and the `0600`
-`credentials.json` read by `credentials` (which imports `config_dir` from here, so
-the base is resolved in exactly one place). There is no data or state directory --
-pushpush sends and forgets, writing nothing durable to relocate.
+`config_dir()` resolves the directory pushpush keeps on the machine through credbox's
+own `config_dir`, the same resolver credbox uses for the `0600` `credentials.json`
+beside the `config.toml` here -- so by default, and on every platform, the two files
+share one directory by construction rather than by two resolvers agreeing. The one
+override that parts them is deliberate: `PUSHPUSH_STORE_APP` redirects only the
+*store* (to fold a messaging setup into a host program's shared credentials), leaving
+this non-secret config where it is. There is no data or state directory -- pushpush
+sends and forgets, writing nothing durable to relocate.
 
 The directory lives outside any checkout because a messaging setup is a property
 of the machine, not of a project -- and because a project directory is exactly the
@@ -22,6 +24,10 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from credbox import CredBoxError, colliding_env_var_prefixes
+from credbox import config_dir as credbox_config_dir
+
+from pushpush.credentials import SECRET_ENV_VAR
 from pushpush.errors import ConfigError, UnknownRouteError
 from pushpush.provider import resolve_provider
 from pushpush.route import Route
@@ -70,47 +76,33 @@ class Config:
 
 def config_dir() -> Path:
     """pushpush's directory on the machine: `config.toml` and the `0600`
-    `credentials.json`.
+    `credentials.json` beside it.
 
-    `$XDG_CONFIG_HOME/pushpush` when that variable holds an absolute path, else
-    `~/.config/pushpush` -- the same on every OS (the git / ssh / aws convention),
-    not a platform-native dir. A blank, whitespace-only, or *relative*
-    `XDG_CONFIG_HOME` is ignored, per the XDG spec ("a relative path ... must be
-    ignored"): a relative value resolves against the working directory, so a cron
-    run (cwd `/`) and an interactive run (cwd `~`) would otherwise find the config
-    in different places. A leading `~` is expanded first, so `~/config` is honored
-    once it resolves to an absolute path; a value still relative after expansion --
-    including a `~user` that names no such user -- is ignored, not an error. It has
-    no override key of its own -- config cannot name the directory the config file
-    itself lives in; a caller override is per-file (`PUSHPUSH_CONFIG`).
+    Delegated to credbox's `config_dir`, the same resolver credbox uses for the
+    credential store, so by default and on every platform the two files share one
+    directory by construction rather than by two resolvers agreeing. By default that
+    is `$XDG_CONFIG_HOME/pushpush` when that holds an absolute path, else
+    `~/.config/pushpush` (the git / ssh / aws convention; a relative, blank, or
+    unresolvable `XDG_CONFIG_HOME` is ignored per the XDG spec). It follows credbox's
+    layout, so a machine or host that puts credbox on the native layout
+    (`CREDBOX_LAYOUT=native`) moves the config to the OS-native dir -- but the store
+    moves with it, so the two stay together. The config *file* keeps its own per-file
+    override, `PUSHPUSH_CONFIG` (see `default_config_path`).
 
     Raises
     ------
     ConfigError
-        No absolute `XDG_CONFIG_HOME` was given and no home directory can be
-        determined for the `~/.config` fallback (HOME unset and the process's uid
-        has no passwd entry).
+        No home directory can be found for the `~/.config` fallback (HOME unset and
+        the process's uid has no passwd entry -- an arbitrary-uid container). credbox
+        raises this as a `CredBoxError`; it is translated so it stays inside the
+        `PushpushError` catch surface `send` documents.
     """
-    base = os.environ.get("XDG_CONFIG_HOME", "").strip()
-    if base:
-        try:
-            root = Path(base).expanduser()
-        except RuntimeError:
-            root = Path(base)  # unresolvable `~user`: stays relative, so it falls back
-        if root.is_absolute():
-            return root / "pushpush"
     try:
-        home = Path.home()
-    except RuntimeError as err:
-        # No absolute XDG_CONFIG_HOME and no determinable home (HOME unset and the
-        # process's uid has no passwd entry -- the arbitrary-uid container this
-        # function's docstring names). A bare RuntimeError here would bypass the
-        # PushpushError catch surface send() documents, so convert it.
+        return credbox_config_dir("pushpush")
+    except CredBoxError as err:
         raise ConfigError(
-            "cannot locate ~/.config/pushpush: no home directory "
-            "(set HOME or an absolute XDG_CONFIG_HOME)"
+            f"cannot locate the pushpush config directory: {err}"
         ) from err
-    return home / ".config" / "pushpush"
 
 
 def default_config_path() -> Path:
@@ -211,28 +203,22 @@ def _reject_env_name_collisions(
 ) -> None:
     """Refuse two route names that fold to the same secret env-var suffix.
 
-    `resolve_secret` reads a per-route override from `PUSHPUSH_SECRET_<suffix>`,
-    where the suffix folds every non-alphanumeric to `_`. Two names that fold to
-    one suffix (`a-b` and `a_b`) would share one variable, so a secret set for one
-    route would answer for the other -- exactly the wrong-destination hazard the
-    per-route naming exists to prevent. Catch it at load time.
+    `resolve_secret` reads a per-route override from `PUSHPUSH_SECRET_<suffix>`, where
+    the suffix is credbox's canonical env-var fold of the route name. Two names that
+    fold to one suffix (`a-b` and `a_b`, or two non-ASCII names that both fold to the
+    same underscores) would share one variable, so a secret set for one route would
+    answer for the other -- exactly the wrong-destination hazard the per-route naming
+    exists to prevent. Detected with credbox's own `colliding_env_var_prefixes`, so it
+    is the same fold `resolve_secret` reads by, and caught at load time.
     """
-    # Lazy: credentials imports config_dir from here, so importing these at module
-    # top would be a cycle. The rule enforced here is a credentials concern (its
-    # per-route env-var naming), so its spelling belongs there, read at call time.
-    from pushpush.credentials import SECRET_ENV_VAR, secret_env_suffix
-
-    name_by_suffix: dict[str, str] = {}
-    for name in route_by_name:
-        suffix = secret_env_suffix(name)
-        clash = name_by_suffix.get(suffix)
-        if clash is not None:
-            raise ConfigError(
-                f"{path}: routes {clash!r} and {name!r} both map to the "
-                f"environment variable {SECRET_ENV_VAR}_{suffix}; rename one so a "
-                f"per-route secret cannot reach the wrong destination"
-            )
-        name_by_suffix[suffix] = name
+    collisions = colliding_env_var_prefixes(route_by_name)
+    if collisions:
+        prefix, names = min(collisions.items())
+        raise ConfigError(
+            f"{path}: routes {' and '.join(map(repr, names))} both map to the "
+            f"environment variable {SECRET_ENV_VAR}_{prefix}; rename one so a "
+            f"per-route secret cannot reach the wrong destination"
+        )
 
 
 def _as_route(name: str, table: object, *, path: Path) -> Route:

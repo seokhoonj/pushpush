@@ -20,8 +20,9 @@ send(media="chart.png", caption="today", to="alerts")
 
 Using Claude Code? You can send just by asking, no Python needed → [Use it from an AI coding agent](#8-use-it-from-an-ai-coding-agent)
 
-Works on Windows, macOS, and Linux. It installs nothing but itself -- no other
-libraries come along -- and sends over the standard library's `urllib`.
+Works on Windows, macOS, and Linux. Its one runtime dependency is credbox (the
+credential store), itself zero-dependency; messages go over the standard library's
+`urllib`.
 
 ## At a glance
 
@@ -83,7 +84,8 @@ does not pre-check its length.
 
 ## 1. Install
 
-pushpush installs itself and nothing else -- no other libraries come along.
+pushpush's one runtime dependency is credbox, itself zero-dependency; nothing else
+comes along.
 
 ```sh
 pip install pushpush
@@ -114,12 +116,14 @@ A route saves a "which service, and where" pair under a name. To send, you call
 the name (`to="alerts"`). Create it at `.config/pushpush/config.toml` under your
 home directory.
 
-| | Path |
+| | Path (default) |
 |---|---|
 | macOS · Linux | `~/.config/pushpush/config.toml` |
 | Windows | `C:\Users\<username>\.config\pushpush\config.toml` |
 
-Create the folder if it does not exist. The contents:
+These are the defaults: set an absolute `XDG_CONFIG_HOME` to move the directory, or
+`PUSHPUSH_CONFIG` to point at one config file elsewhere. Create the folder if it does
+not exist. The contents:
 
 ```toml
 default_route = "alerts"
@@ -214,7 +218,7 @@ send(media="report.pdf", caption="daily report", to="alerts")
 send("<b>bold</b>", to="alerts", markup="html")
 
 # without a notification sound
-send("nightly batch done", to="ops", silent=True)
+send("nightly batch done", to="alerts", silent=True)
 ```
 
 Omit `to` and it goes to `default_route`. A send needs at least one of `text` or
@@ -239,11 +243,16 @@ Installing pushpush also gives you a `pushpush` command -- a thin wrapper over
 `send()` for scripts and cron.
 
 ```sh
-pushpush send "deploy finished" --to slack
-pushpush send --media chart.png --caption "today" --to slack
-echo "batch done" | pushpush send --to slack     # text from stdin
+pushpush send "deploy finished" --to alerts
+pushpush send --media chart.png --to alerts       # the piped/positional text captions it
+echo "batch done" | pushpush send --to alerts     # text from stdin
 pushpush routes                                   # list the configured routes
 ```
+
+The options: `-t/--to` names the route (default: `default_route`), `-m/--media`
+attaches a file, `-c/--caption` labels it (use either the message text or `--caption`
+for a media label, not both), `--markup plain|markdown|html` picks the rendering, and
+`-s/--silent` delivers without a sound.
 
 It reads the same config and secrets as the Python API. Unlike the Python call it
 does not confirm before sending -- it is for automation. For an interactive,
@@ -263,6 +272,8 @@ raises right there.
 | `MarkupUnsupportedError` | the service does not render that markup (html is Telegram only) |
 | `MissingSecretError` | the route has no secret |
 | `SendFailedError` | the service was reached and refused -- a revoked token, a wrong chat_id, etc. Carries the service's own reason |
+| `ConfigError` | the config file is missing or malformed (`UnknownRouteError` and `UnknownProviderError`, for a route or provider not in the config, are kinds of it) |
+| `CredentialsError` | the stored secret could not be read (a malformed or unreadable store) |
 | `urllib.error.URLError` | the network itself failed -- DNS, a refused connection, a timeout |
 
 To catch everything:

@@ -19,12 +19,12 @@ send(media="chart.png", caption="today", to="alerts")
 
 Claude Code를 쓴다면 파이썬을 몰라도 말로 보낼 수 있습니다 → [AI 코딩 에이전트에서 사용](#8-ai-코딩-에이전트에서-사용)
 
-Windows·macOS·Linux에서 동작합니다. 설치되는 것은 이 패키지뿐이고, 다른 라이브러리를
-함께 끌어오지 않습니다 -- 표준 라이브러리의 `urllib` 하나로 전송합니다.
+Windows·macOS·Linux에서 동작합니다. 런타임 의존성은 credbox(자격증명 저장소) 하나뿐이고
+그 자체도 무의존이며, 전송은 표준 라이브러리의 `urllib`으로 합니다.
 
-## 구조 한눈에
+## 동작 개요
 
-`send()` 한 번은 route를 풀고, secret을 찾고, provider가 요청을 짜고, 서비스가
+`send()` 한 번은 route를 조회하고, secret을 찾고, provider가 요청을 짜고, 서비스가
 못 받을 것은 네트워크를 타기 전에 막고, 결과를 `SendReceipt`로 돌려줍니다.
 
 ```mermaid
@@ -70,7 +70,7 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 텍스트로는 들어가는 글이 캡션으로는 거부될 수 있습니다. Slack은 긴 텍스트를 스스로
 쪼개거나 막으므로 pushpush가 길이를 미리 확인하지 않습니다.
 
-## 준비물
+## 사전 준비
 
 - **Python 3.11 이상.** 터미널에서 `python --version`으로 확인합니다. (Windows에서는
   `py --version`일 수 있습니다.)
@@ -78,7 +78,8 @@ Slack 파일 전송은 **봇 토큰**(`files:write` 권한)으로만 되고, rou
 
 ## 1. 설치
 
-pushpush는 자기 자신만 설치합니다 -- 다른 라이브러리를 함께 끌어오지 않습니다.
+pushpush의 런타임 의존성은 credbox 하나뿐이고, 그 자체도 무의존입니다. 그 외에 따라오는
+건 없습니다.
 
 ```sh
 pip install pushpush
@@ -108,12 +109,13 @@ pip install -e ".[dev]"
 route는 "어느 서비스로, 어디에" 한 쌍을 이름으로 저장한 것입니다. 보낼 때는 이름만
 부릅니다(`to="alerts"`). 홈 폴더 아래 `.config/pushpush/config.toml`에 만듭니다.
 
-| | 경로 |
+| | 경로 (기본값) |
 |---|---|
 | macOS · Linux | `~/.config/pushpush/config.toml` |
 | Windows | `C:\Users\<사용자이름>\.config\pushpush\config.toml` |
 
-폴더가 없으면 만듭니다. 내용은 이렇게:
+기본값입니다: 절대경로 `XDG_CONFIG_HOME`으로 디렉터리를 옮기거나, `PUSHPUSH_CONFIG`로 다른
+설정 파일 하나를 가리킬 수 있습니다. 폴더가 없으면 만듭니다. 내용은 이렇게:
 
 ```toml
 default_route = "alerts"
@@ -203,7 +205,7 @@ send(media="report.pdf", caption="일일 리포트", to="alerts")
 send("<b>굵게</b>", to="alerts", markup="html")
 
 # 알림음 없이
-send("야간 배치 완료", to="ops", silent=True)
+send("야간 배치 완료", to="alerts", silent=True)
 ```
 
 `to`를 생략하면 `default_route`로 갑니다. 보낼 것은 `text`나 `media` 중 최소 하나가
@@ -227,11 +229,15 @@ pushpush를 설치하면 `pushpush` 명령도 생깁니다 -- 스크립트·크�
 얇은 래퍼입니다.
 
 ```sh
-pushpush send "배포 완료" --to slack
-pushpush send --media chart.png --caption "오늘" --to slack
-echo "배치 끝" | pushpush send --to slack     # 본문을 stdin으로
+pushpush send "배포 완료" --to alerts
+pushpush send --media chart.png --to alerts    # 본문(stdin/인자)이 캡션이 됩니다
+echo "배치 끝" | pushpush send --to alerts     # 본문을 stdin으로
 pushpush routes                                # 설정된 route 목록
 ```
+
+옵션: `-t/--to`는 route 지정(기본값 `default_route`), `-m/--media`는 파일 첨부, `-c/--caption`은
+파일 설명(미디어 라벨은 본문 텍스트나 `--caption` 중 하나만, 둘 다는 안 됨), `--markup
+plain|markdown|html`은 렌더링, `-s/--silent`는 알림음 없이 전송.
 
 Python API와 같은 설정·시크릿을 읽습니다. Python 호출과 달리 발송 전 확인은 하지 않습니다 --
 자동화용입니다. 대화 중 확인하고 보내려면 아래 Claude Code 스킬을 씁니다.
@@ -245,10 +251,12 @@ Python API와 같은 설정·시크릿을 읽습니다. Python 호출과 달리 
 |---|---|
 | `InvalidPushError` | 보낼 내용이 없거나(text·media 둘 다 없음), media 없는 caption, destination이 필요한데 없음, 또는 텍스트·캡션이 서비스 길이 한도 초과 |
 | `MediaError` / `MediaTooLargeError` | 파일이 없거나 파일이 아님 / 서비스 한도 초과 |
-| `MediaUnsupportedError` | 그 route가 파일을 못 나름 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
-| `MarkupUnsupportedError` | 그 서비스가 그 서식을 안 그림 (html은 Telegram만) |
+| `MediaUnsupportedError` | 그 route로는 파일을 전송할 수 없음 (Slack 웹훅 -- 봇 토큰을 쓸 것) |
+| `MarkupUnsupportedError` | 그 서비스가 그 서식을 지원하지 않음 (html은 Telegram만) |
 | `MissingSecretError` | 그 route의 secret이 없음 |
 | `SendFailedError` | 서비스까지 갔는데 거부됨 -- 폐기된 토큰, 틀린 chat_id 등. 서비스가 준 사유를 담고 있습니다 |
+| `ConfigError` | 설정 파일이 없거나 잘못됨 (설정에 없는 route·provider인 `UnknownRouteError`·`UnknownProviderError`가 이 하위입니다) |
+| `CredentialsError` | 저장된 secret을 읽을 수 없음 (저장소가 손상됐거나 읽기 불가) |
 | `urllib.error.URLError` | 네트워크 자체가 실패 -- DNS, 연결 거부, 타임아웃 |
 
 전부 잡으려면:

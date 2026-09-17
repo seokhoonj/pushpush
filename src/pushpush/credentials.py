@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import os
 
-from credbox import BlankSecretError, CredBoxError, Credentials
+from credbox import BlankSecretError, CredBoxError, Credentials, env_var_prefix
 
 from pushpush.errors import CredentialsError, MissingSecretError
 from pushpush.route import Route
@@ -66,8 +66,13 @@ def resolve_secret(route: Route) -> str:
         from the store).
     """
     try:
-        # override carries pushpush's own env resolution; credbox also probes an env
-        # var named the route, a no-op for a name that is not a valid shell variable.
+        # override carries pushpush's own env resolution (the per-route
+        # PUSHPUSH_SECRET_* name, then the bare PUSHPUSH_SECRET) and wins. After it,
+        # credbox probes an env var named exactly the route -- and a route name is a
+        # lowercase word, a valid shell variable, so a stray `alerts=...` in the
+        # environment would be read as the alerts secret. It fails loud (a wrong token
+        # is refused by the service), not silently, but it is why a route should not be
+        # named after a variable that might already be in the environment.
         secret = _store.secret(
             route.name, override=_load_secret_from_env(route)
         )
@@ -145,8 +150,12 @@ def _load_secret_from_env(route: Route) -> str | None:
 def secret_env_suffix(route_name: str) -> str:
     """The env-var suffix a route name folds to: `team-alerts` -> `TEAM_ALERTS`.
 
-    Anything a shell rejects in a variable name folds to `_`. Two names that fold to the
-    same suffix are a collision `load_config` refuses -- otherwise one route's
+    credbox's canonical fold: every character a shell rejects in a variable name
+    (anything outside ASCII `[A-Za-z0-9]`) becomes `_`, so the name that is read is one
+    a shell can actually export -- a non-ASCII route name folds to underscores rather
+    than to itself, which no shell would take. Two names that fold to the same suffix
+    are a collision `load_config` refuses (it uses credbox's
+    `colliding_env_var_prefixes`, the same fold), otherwise one route's
     `PUSHPUSH_SECRET_*` would answer for the other.
     """
-    return "".join(char if char.isalnum() else "_" for char in route_name.upper())
+    return env_var_prefix(route_name)
