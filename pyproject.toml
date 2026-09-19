@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pushpush"
-version = "0.3.1"
+version = "0.3.2"
 description = "Send a message to Telegram, Slack, or Discord through one call, with the service's own limits checked before anything is sent."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,7 +28,7 @@ classifiers = [
 # credbox owns the credential store: config_dir, the 0600 credentials.json, atomic
 # writes, env-first resolution, and permission hardening. It is itself zero-dependency,
 # so pushpush pulls in no third-party transitive packages.
-dependencies = ["credbox>=0.4.0,<0.5"]
+dependencies = ["credbox>=0.4"]
 
 [project.scripts]
 pushpush = "pushpush.cli:main"
